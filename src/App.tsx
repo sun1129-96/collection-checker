@@ -3,7 +3,7 @@ import {
   CHECKLIST_ITEMS,
   ITEM_CATEGORIES,
   calcAchievementRate,
-  calcCategoryAchievements,
+  calcConditionAchievement,
   filterItems,
   getItemProgress,
   makeSubItemKey,
@@ -56,21 +56,32 @@ function App() {
   // 総合達成率（全サブ要素基準）
   const achievementRate = useMemo(() => calcAchievementRate(checkedKeys), [checkedKeys])
 
-  // 条件（カテゴリ）別達成状況
-  const categoryAchievements = useMemo(
-    () => calcCategoryAchievements(checkedKeys),
-    [checkedKeys],
+  // 絞り込み条件オブジェクト
+  const filterCondition = useMemo<FilterCondition>(() => ({
+    category: filterCategory,
+    status: filterStatus,
+  }), [filterCategory, filterStatus])
+
+  // 絞り込みが適用されたアイテム一覧
+  const filteredItems = useMemo(
+    () => filterItems(CHECKLIST_ITEMS, filterCondition, checkedKeys),
+    [filterCondition, checkedKeys],
   )
 
   // 絞り込みおよび並び替えが適用された表示対象アイテム一覧
-  const filteredAndSortedItems = useMemo(() => {
-    const condition: FilterCondition = {
-      category: filterCategory,
-      status: filterStatus,
-    }
-    const filtered = filterItems(CHECKLIST_ITEMS, condition, checkedKeys)
-    return sortItems(filtered, sortOption, checkedKeys)
-  }, [checkedKeys, filterCategory, filterStatus, sortOption])
+  const displayedItems = useMemo(
+    () => sortItems(filteredItems, sortOption, checkedKeys),
+    [filteredItems, sortOption, checkedKeys],
+  )
+
+  // 条件が指定されているかどうかの判定
+  const isConditionActive = filterCategory !== 'all' || filterStatus !== 'all'
+
+  // 設定された条件の組み合わせに対する達成状況
+  const conditionAchievement = useMemo(
+    () => calcConditionAchievement(filteredItems, checkedKeys),
+    [filteredItems, checkedKeys],
+  )
 
   // 全サブ要素総数
   const totalSubItemsCount = useMemo(() => {
@@ -161,6 +172,23 @@ function App() {
   }
 
   const overallProgressWidthClass = getProgressWidthClass(achievementRate)
+  const conditionProgressWidthClass = getProgressWidthClass(conditionAchievement.rate)
+
+  // 条件表示用のラベル文字列作成
+  const conditionLabel = useMemo(() => {
+    const parts: string[] = []
+    if (filterCategory !== 'all') {
+      parts.push(`季節: ${filterCategory}`)
+    }
+    if (filterStatus === 'unstarted') {
+      parts.push('未着手')
+    } else if (filterStatus === 'in_progress') {
+      parts.push('進行中')
+    } else if (filterStatus === 'completed') {
+      parts.push('完了')
+    }
+    return parts.join(' × ')
+  }, [filterCategory, filterStatus])
 
   return (
     <div className="min-h-screen bg-zinc-50 text-zinc-900 py-8 px-4 sm:px-6 lg:px-8">
@@ -206,7 +234,7 @@ function App() {
             </div>
           </div>
           <p className="text-xs sm:text-sm text-zinc-500">
-            1つの項目内の複数のサブ要素を個別にチェックできます。条件を指定すると、達成率バーと絞り込み・並べ替え結果が即座に反映されます。
+            項目内のサブ要素タグをタップして個別にチェックできます。設定した条件の達成率バーと絞り込み・並べ替えが即座に反映されます。
           </p>
         </header>
 
@@ -249,71 +277,51 @@ function App() {
           </div>
         </section>
 
-        {/* 条件別の達成率バー（カテゴリ別） */}
-        <section className="bg-white border border-zinc-200 rounded-xl p-5 shadow-xs">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h2 className="text-sm font-semibold text-zinc-800">条件別の達成率</h2>
-              <p className="text-xs text-zinc-400">タップしてそのカテゴリに即座に絞り込み</p>
+        {/* 設定条件の達成率バー（設定した条件の組み合わせのもののみ表示） */}
+        {isConditionActive ? (
+          <section className="bg-white border border-indigo-200 rounded-xl p-5 shadow-xs">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-indigo-700">
+                  条件別達成率
+                </span>
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 font-medium">
+                  {conditionLabel}
+                </span>
+              </div>
+              <span className="text-2xl font-bold text-indigo-950 font-mono">
+                {conditionAchievement.rate}%
+              </span>
             </div>
-            {filterCategory !== 'all' && (
+
+            {/* 条件別プログレスバー */}
+            <div
+              className="mt-3 h-2.5 w-full bg-indigo-50 rounded-full overflow-hidden"
+              aria-hidden="true"
+            >
+              <div
+                className={`h-full bg-indigo-600 rounded-full transition-all duration-300 ease-out ${conditionProgressWidthClass}`}
+              />
+            </div>
+
+            <div className="mt-2.5 flex items-center justify-between text-xs text-zinc-500">
+              <span>
+                {conditionAchievement.checkedCount} / {conditionAchievement.totalCount} サブ要素完了
+                （対象: {filteredItems.length} 項目）
+              </span>
               <button
                 type="button"
-                onClick={() => setFilterCategory('all')}
+                onClick={() => {
+                  setFilterCategory('all')
+                  setFilterStatus('all')
+                }}
                 className="text-xs text-indigo-600 hover:text-indigo-800 font-medium cursor-pointer"
               >
-                絞り込み解除
+                条件を解除
               </button>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {categoryAchievements.map((item) => {
-              const isSelected = filterCategory === item.category
-              const barClass = getProgressWidthClass(item.rate)
-
-              return (
-                <button
-                  key={item.category}
-                  type="button"
-                  onClick={() =>
-                    setFilterCategory(isSelected ? 'all' : item.category)
-                  }
-                  className={`flex flex-col gap-2 p-3 rounded-lg border text-left transition-all cursor-pointer ${
-                    isSelected
-                      ? 'border-indigo-500 bg-indigo-50/50 ring-1 ring-indigo-500'
-                      : 'border-zinc-200 bg-zinc-50/60 hover:border-zinc-300 hover:bg-zinc-50'
-                  }`}
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <span className="text-xs font-semibold text-zinc-800">
-                      季節: {item.category}
-                    </span>
-                    <span className="text-xs font-mono font-bold text-zinc-700">
-                      {item.rate}%
-                    </span>
-                  </div>
-
-                  {/* 条件別プログレスバー */}
-                  <div className="h-2 w-full bg-zinc-200/80 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full bg-indigo-600 rounded-full transition-all duration-300 ${barClass}`}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between text-[11px] text-zinc-500 w-full">
-                    <span>
-                      {item.checkedCount} / {item.totalCount} 完了
-                    </span>
-                    {item.rate === 100 && (
-                      <span className="text-emerald-600 font-medium">完了</span>
-                    )}
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-        </section>
+            </div>
+          </section>
+        ) : null}
 
         {/* 絞り込み & 並べ替え コントロールバー */}
         <section className="bg-white border border-zinc-200 rounded-xl p-4 shadow-xs flex flex-col gap-3">
@@ -335,7 +343,7 @@ function App() {
                 <option value="all">すべてのカテゴリ</option>
                 {ITEM_CATEGORIES.map((cat) => (
                   <option key={cat} value={cat}>
-                    {cat}
+                    季節: {cat}
                   </option>
                 ))}
               </select>
@@ -388,9 +396,9 @@ function App() {
           {/* フィルター結果ステータス & リセット */}
           <div className="flex items-center justify-between pt-2 border-t border-zinc-100 text-xs text-zinc-500">
             <span>
-              該当項目: <strong className="text-zinc-800">{filteredAndSortedItems.length}</strong> / {CHECKLIST_ITEMS.length} 件
+              該当項目: <strong className="text-zinc-800">{displayedItems.length}</strong> / {CHECKLIST_ITEMS.length} 件
             </span>
-            {(filterCategory !== 'all' || filterStatus !== 'all' || sortOption !== 'default') && (
+            {(isConditionActive || sortOption !== 'default') && (
               <button
                 type="button"
                 onClick={() => {
@@ -414,18 +422,18 @@ function App() {
           </div>
         )}
 
-        {/* 項目一覧（複数サブ要素保持・個別チェック） */}
+        {/* 1週目の表示のような一覧表示とタグの組み合わせ */}
         <section className="bg-white border border-zinc-200 rounded-xl p-5 shadow-xs">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-zinc-800">
               チェック項目一覧
             </h2>
             <span className="text-xs text-zinc-400 font-mono">
-              表示: {filteredAndSortedItems.length} 項目
+              表示: {displayedItems.length} 項目
             </span>
           </div>
 
-          {filteredAndSortedItems.length === 0 ? (
+          {displayedItems.length === 0 ? (
             <div className="text-center py-10 px-4 border border-dashed border-zinc-200 rounded-lg">
               <p className="text-sm text-zinc-500">指定された条件に一致する項目がありません。</p>
               <button
@@ -440,36 +448,47 @@ function App() {
               </button>
             </div>
           ) : (
-            <ul className="flex flex-col gap-4">
-              {filteredAndSortedItems.map((item) => {
+            <ul className="flex flex-col gap-2.5">
+              {displayedItems.map((item) => {
                 const progress = getItemProgress(item, checkedKeys)
                 const isAllChecked = progress.isCompleted
-                const itemBarClass = getProgressWidthClass(progress.rate)
 
                 return (
-                  <li
-                    key={item.id}
-                    className={`rounded-xl border transition-all ${
-                      isAllChecked
-                        ? 'bg-zinc-50/70 border-zinc-300'
-                        : 'bg-white border-zinc-200 hover:border-zinc-300'
-                    } p-4 flex flex-col gap-3`}
-                  >
-                    {/* 親アイテムヘッダー */}
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <span className="text-xs px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-600 border border-zinc-200 shrink-0">
-                          {item.category}
-                        </span>
-                        <h3 className="text-sm font-bold text-zinc-900 truncate">
-                          {item.label}
-                        </h3>
-                      </div>
+                  <li key={item.id}>
+                    <div
+                      className={`w-full flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-3.5 py-3 rounded-lg border transition-colors ${
+                        isAllChecked
+                          ? 'bg-zinc-50 border-zinc-300'
+                          : 'bg-white border-zinc-200 hover:bg-zinc-50/50 hover:border-zinc-300'
+                      }`}
+                    >
+                      {/* 左側: 一括チェックボタン + 項目名 + 進捗バッジ */}
+                      <div className="flex items-center gap-3 min-w-0">
+                        {/* 一括チェック/解除アイコンボタン */}
+                        <button
+                          type="button"
+                          aria-label={`${item.label}の全要素を一括チェック/解除`}
+                          onClick={() => toggleAllSubItems(item)}
+                          title={isAllChecked ? 'すべて解除' : 'すべてチェック'}
+                          className={`w-4 h-4 rounded flex items-center justify-center text-xs font-bold shrink-0 transition-colors cursor-pointer ${
+                            isAllChecked
+                              ? 'bg-zinc-900 border border-zinc-900 text-white'
+                              : progress.isInProgress
+                              ? 'border-2 border-indigo-600 bg-indigo-50 text-indigo-700 text-[10px] leading-none'
+                              : 'border border-zinc-300 bg-white text-transparent hover:border-zinc-400'
+                          }`}
+                        >
+                          {isAllChecked ? '✓' : progress.isInProgress ? '–' : ''}
+                        </button>
 
-                      {/* 親アイテム進捗情報 & 一括トグルボタン */}
-                      <div className="flex items-center gap-2 shrink-0">
+                        {/* 項目名（取り消し線なし） */}
+                        <span className="font-normal text-zinc-900 text-sm truncate">
+                          {item.label}
+                        </span>
+
+                        {/* 進捗数値バッジ */}
                         <span
-                          className={`text-xs px-2 py-0.5 rounded-full font-mono font-semibold ${
+                          className={`text-[11px] font-mono px-1.5 py-0.5 rounded shrink-0 font-medium ${
                             isAllChecked
                               ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                               : progress.isInProgress
@@ -477,62 +496,41 @@ function App() {
                               : 'bg-zinc-100 text-zinc-500 border border-zinc-200'
                           }`}
                         >
-                          {progress.checkedCount} / {progress.totalCount} ({progress.rate}%)
+                          {progress.checkedCount}/{progress.totalCount} ({progress.rate}%)
                         </span>
-
-                        <button
-                          type="button"
-                          onClick={() => toggleAllSubItems(item)}
-                          className="text-[11px] text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100 px-2 py-0.5 rounded border border-zinc-200 transition-colors cursor-pointer"
-                          title={isAllChecked ? 'すべて解除' : 'すべてチェック'}
-                        >
-                          {isAllChecked ? '解除' : '一括'}
-                        </button>
                       </div>
-                    </div>
 
-                    {/* 親アイテム進捗バー */}
-                    <div className="h-1.5 w-full bg-zinc-100 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full ${
-                          isAllChecked ? 'bg-emerald-600' : 'bg-indigo-600'
-                        } rounded-full transition-all duration-300 ${itemBarClass}`}
-                      />
-                    </div>
+                      {/* 右側: サブ要素タグ群（個別にタップ可能） + カテゴリタグ */}
+                      <div className="flex items-center flex-wrap gap-1.5 shrink-0 pl-7 sm:pl-0">
+                        {item.subItems.map((sub) => {
+                          const subKey = makeSubItemKey(item.id, sub.id)
+                          const isSubChecked = checkedKeys.has(subKey)
 
-                    {/* 複数サブ要素一覧（個別にチェック可能） */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
-                      {item.subItems.map((sub) => {
-                        const subKey = makeSubItemKey(item.id, sub.id)
-                        const isSubChecked = checkedKeys.has(subKey)
-
-                        return (
-                          <button
-                            key={sub.id}
-                            type="button"
-                            aria-pressed={isSubChecked}
-                            onClick={() => toggleSubItem(item.id, sub.id)}
-                            className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-left transition-colors cursor-pointer text-xs ${
-                              isSubChecked
-                                ? 'bg-indigo-50/70 border-indigo-300 text-indigo-950 font-medium'
-                                : 'bg-zinc-50/50 border-zinc-200 text-zinc-700 hover:bg-zinc-100/70 hover:border-zinc-300'
-                            }`}
-                          >
-                            {/* チェックボックスアイコン */}
-                            <span
-                              className={`w-4 h-4 rounded flex items-center justify-center text-[10px] font-bold shrink-0 transition-colors ${
+                          return (
+                            <button
+                              key={sub.id}
+                              type="button"
+                              aria-pressed={isSubChecked}
+                              onClick={() => toggleSubItem(item.id, sub.id)}
+                              className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border transition-all cursor-pointer ${
                                 isSubChecked
-                                  ? 'bg-indigo-600 border border-indigo-600 text-white'
-                                  : 'border border-zinc-300 bg-white text-transparent'
+                                  ? 'bg-zinc-900 text-white border-zinc-900 hover:bg-zinc-800 shadow-2xs'
+                                  : 'bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200 hover:text-zinc-900'
                               }`}
-                              aria-hidden="true"
                             >
-                              ✓
-                            </span>
-                            <span className="truncate">{sub.label}</span>
-                          </button>
-                        )
-                      })}
+                              <span className="text-[10px] font-bold">
+                                {isSubChecked ? '✓' : '+'}
+                              </span>
+                              <span>{sub.label}</span>
+                            </button>
+                          )
+                        })}
+
+                        {/* 1週目スタイルのカテゴリタグ */}
+                        <span className="text-xs px-2 py-0.5 rounded bg-zinc-100 text-zinc-600 border border-zinc-200">
+                          季節: {item.category}
+                        </span>
+                      </div>
                     </div>
                   </li>
                 )
@@ -546,4 +544,5 @@ function App() {
 }
 
 export default App
+
 

@@ -26,3 +26,4 @@ dist-ssr
 *.sln
 *.sw?
 scratch_*
+.week1-preview

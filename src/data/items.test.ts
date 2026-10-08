@@ -4,6 +4,7 @@ import {
   ITEM_CATEGORIES,
   calcAchievementRate,
   calcCategoryAchievements,
+  calcConditionAchievement,
   filterItems,
   getItemProgress,
   makeSubItemKey,
@@ -118,6 +119,30 @@ describe('calcCategoryAchievements（条件・カテゴリ別の達成状況集�
     expect(summer?.rate).toBe(0)
   })
 })
+
+describe('calcConditionAchievement（設定した条件のアイテム群に対する達成率集計）', () => {
+  it('特定条件（例: 春カテゴリのアイテム群）に対する達成率が正しく算出されること', () => {
+    const springItems = CHECKLIST_ITEMS.filter((i) => i.category === '春')
+    const checked = new Set([
+      makeSubItemKey('spring-sakura', 'spot'),
+      makeSubItemKey('spring-sakura', 'photo'),
+      makeSubItemKey('spring-sakura', 'crystal'),
+    ])
+
+    const achievement = calcConditionAchievement(springItems, checked)
+    expect(achievement.totalCount).toBe(9)
+    expect(achievement.checkedCount).toBe(3)
+    expect(achievement.rate).toBe(33)
+  })
+
+  it('対象アイテムが0件の場合はゼロ除算を回避して0%を返すこと', () => {
+    const achievement = calcConditionAchievement([], new Set())
+    expect(achievement.totalCount).toBe(0)
+    expect(achievement.checkedCount).toBe(0)
+    expect(achievement.rate).toBe(0)
+  })
+})
+
 
 describe('filterItems（条件指定による絞り込み）', () => {
   const itemSakura = CHECKLIST_ITEMS[0] // 春

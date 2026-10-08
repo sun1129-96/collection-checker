@@ -285,6 +285,41 @@ export function calcCategoryAchievements(
 }
 
 /**
+ * 設定された条件（指定アイテム一覧）に対する達成状況および達成率を計算する
+ */
+export type ConditionAchievement = {
+  checkedCount: number
+  totalCount: number
+  rate: number
+}
+
+export function calcConditionAchievement(
+  items: ChecklistItem[],
+  checkedKeys: Set<string>,
+): ConditionAchievement {
+  let totalCount = 0
+  let checkedCount = 0
+
+  for (const item of items) {
+    for (const sub of item.subItems) {
+      totalCount += 1
+      if (checkedKeys.has(makeSubItemKey(item.id, sub.id))) {
+        checkedCount += 1
+      }
+    }
+  }
+
+  const rate = totalCount === 0 ? 0 : Math.round((checkedCount / totalCount) * 100)
+
+  return {
+    checkedCount,
+    totalCount,
+    rate,
+  }
+}
+
+
+/**
  * 絞り込み条件の定義
  */
 export type StatusFilter = 'all' | 'unstarted' | 'in_progress' | 'completed'
