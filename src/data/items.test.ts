@@ -167,10 +167,10 @@ describe('formatConditionLabel（比較条件のラベル生成）', () => {
   })
 })
 
-describe('filterItems（複数選択および複数軸の複合絞り込み）', () => {
+describe('filterItems（複数選択および複数カテゴリの複合絞り込み）', () => {
   const checked = new Set(['spring-sakura-spot', 'spring-sakura-photo', 'summer-sun-climb'])
 
-  it('同一軸内の複数選択でOR条件（春 または 夏）の場合はいずれかを含む要素が絞り込めること', () => {
+  it('同一カテゴリ内の複数選択でOR条件（春 または 夏）の場合はいずれかを含む要素が絞り込めること', () => {
     const filtered = filterItems(
       CHECKLIST_ITEMS,
       { seasons: ['春', '夏'], motifs: [], status: 'all', matchMode: 'or' },
@@ -181,7 +181,7 @@ describe('filterItems（複数選択および複数軸の複合絞り込み）',
     expect(filtered.every((item) => item.season === '春' || item.season === '夏')).toBe(true)
   })
 
-  it('同一軸内の複数選択でAND条件（春 かつ 夏）の場合は全てを含む要素のみ絞り込まれること（単一値なら0件）', () => {
+  it('同一カテゴリ内の複数選択でAND条件（春 かつ 夏）の場合は全てを含む要素のみ絞り込まれること（単一値なら0件）', () => {
     const filtered = filterItems(
       CHECKLIST_ITEMS,
       { seasons: ['春', '夏'], motifs: [], status: 'all', matchMode: 'and' },
@@ -191,7 +191,7 @@ describe('filterItems（複数選択および複数軸の複合絞り込み）',
     expect(filtered.length).toBe(0)
   })
 
-  it('ひとつの軸に複数の要素を持つアイテム（歌唱者:A, Bなど）に対するAND検索で、項目全てが含まれるもののみ絞り込めること', () => {
+  it('ひとつのカテゴリに複数の要素を持つアイテム（歌唱者:A, Bなど）に対するAND検索で、項目全てが含まれるもののみ絞り込めること', () => {
     // 歌唱者タグなど複数要素を持つアイテムのモック
     const multiTagItems = [
       { id: 'item-ab', label: '曲AB', season: ['春', '夏'], motif: '桜' },

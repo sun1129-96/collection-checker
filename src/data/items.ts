@@ -201,7 +201,7 @@ export function calcConditionRate(
 }
 
 /**
- * 複数選択および複数軸の複合絞り込み条件の定義
+ * 複数選択および複数カテゴリの複合絞り込み条件の定義
  */
 export type MultiFilterConfig = {
   seasons: string[] // 空配列の場合は制限なし（すべての季節）
@@ -212,8 +212,8 @@ export type MultiFilterConfig = {
 
 /**
  * 複合条件に基づいてアイテム一覧を絞り込む
- * - matchMode === 'and' (デフォルト): 指定された各軸・項目の条件すべてが含まれる（完全一致）要素のみを抽出
- *   （一つの軸に複数の要素が選択された場合も、項目全てが含まれるもののみ絞り込む）
+ * - matchMode === 'and' (デフォルト): 指定された各カテゴリ・項目の条件すべてが含まれる（完全一致）要素のみを抽出
+ *   （一つのカテゴリに複数の要素が選択された場合も、項目全てが含まれるもののみ絞り込む）
  * - matchMode === 'or': 指定された条件のいずれかを含む要素を抽出
  */
 export function filterItems(
@@ -231,7 +231,7 @@ export function filterItems(
 
     if (matchMode === 'and') {
       // AND条件: 選択されたすべての要素がアイテムに含まれていること
-      // 一つの軸に複数の要素が選択された場合（例: 季節で春と夏、歌唱者でAとB）も、項目「全て」が含まれるもののみ絞り込む
+      // 一つのカテゴリに複数の要素が選択された場合（例: 季節で春と夏、歌唱者でAとB）も、項目「全て」が含まれるもののみ絞り込む
       if (hasSeasonFilter) {
         const hasAllSeasons = config.seasons.every((s) => itemSeasons.includes(s))
         if (!hasAllSeasons) return false
