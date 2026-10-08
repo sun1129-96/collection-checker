@@ -1,332 +1,156 @@
-export type SubItem = {
-  id: string
-  label: string
-}
-
 export type ChecklistItem = {
   id: string
   label: string
-  category: string
-  subItems: SubItem[]
+  season: string
+  motif: string
 }
 
 export const CHECKLIST_ITEMS: ChecklistItem[] = [
-  // 春カテゴリ
-  {
-    id: 'spring-sakura',
-    category: '春',
-    label: '桜モチーフ',
-    subItems: [
-      { id: 'spot', label: '花見スポット探索' },
-      { id: 'photo', label: '夜桜の撮影' },
-      { id: 'crystal', label: '満開の結晶入手' },
-    ],
-  },
-  {
-    id: 'spring-butterfly',
-    category: '春',
-    label: '蝶々モチーフ',
-    subItems: [
-      { id: 'catch', label: '春の野原で捕獲' },
-      { id: 'book', label: '図鑑登録完了' },
-      { id: 'golden', label: '金色の個体入手' },
-    ],
-  },
-  {
-    id: 'spring-rain',
-    category: '春',
-    label: '雨の日モチーフ',
-    subItems: [
-      { id: 'event', label: '春雨イベント制覇' },
-      { id: 'shelter', label: '雨宿り小屋解放' },
-      { id: 'rainbow', label: '虹のドロップ収集' },
-    ],
-  },
+  // 春 - 桜モチーフ
+  { id: 'spring-sakura-spot', season: '春', motif: '桜', label: '花見スポット探索' },
+  { id: 'spring-sakura-photo', season: '春', motif: '桜', label: '夜桜の撮影' },
+  { id: 'spring-sakura-crystal', season: '春', motif: '桜', label: '満開の結晶入手' },
 
-  // 夏カテゴリ
-  {
-    id: 'summer-sun',
-    category: '夏',
-    label: '太陽モチーフ',
-    subItems: [
-      { id: 'climb', label: '真昼の頂上登頂' },
-      { id: 'amulet', label: '日輪の護符入手' },
-      { id: 'trial', label: '灼熱試練クリア' },
-    ],
-  },
-  {
-    id: 'summer-sea',
-    category: '夏',
-    label: '海モチーフ',
-    subItems: [
-      { id: 'deep-sea', label: '深海ダンジョン踏破' },
-      { id: 'treasure', label: '沈没船の宝箱開封' },
-      { id: 'pearl', label: '真珠の首飾り入手' },
-    ],
-  },
-  {
-    id: 'summer-firefly',
-    category: '夏',
-    label: '蛍モチーフ',
-    subItems: [
-      { id: 'stream', label: '清流エリア探索' },
-      { id: 'night', label: '夜間観測完了' },
-      { id: 'lantern', label: '蛍火のランタン入手' },
-    ],
-  },
+  // 春 - 蝶々モチーフ
+  { id: 'spring-butterfly-catch', season: '春', motif: '蝶々', label: '春の野原で捕獲' },
+  { id: 'spring-butterfly-book', season: '春', motif: '蝶々', label: '図鑑登録完了' },
+  { id: 'spring-butterfly-golden', season: '春', motif: '蝶々', label: '金色の個体入手' },
 
-  // 秋カテゴリ
-  {
-    id: 'autumn-maple',
-    category: '秋',
-    label: '紅葉モチーフ',
-    subItems: [
-      { id: 'valley', label: '紅葉渓谷踏破' },
-      { id: 'carpet', label: '落ち葉の絨毯散策' },
-      { id: 'tapestry', label: '錦秋のタペストリー入手' },
-    ],
-  },
-  {
-    id: 'autumn-moon',
-    category: '秋',
-    label: '月見モチーフ',
-    subItems: [
-      { id: 'spot', label: '名月鑑賞スポット発見' },
-      { id: 'dumpling', label: '月見団子作り' },
-      { id: 'treasure', label: '十五夜の秘宝入手' },
-    ],
-  },
-  {
-    id: 'autumn-harvest',
-    category: '秋',
-    label: '収穫モチーフ',
-    subItems: [
-      { id: 'fruits', label: '豊作の果実収集' },
-      { id: 'festival', label: '秋祭りコンプリート' },
-      { id: 'ear', label: '黄金の稲穂入手' },
-    ],
-  },
+  // 春 - 雨の日モチーフ
+  { id: 'spring-rain-event', season: '春', motif: '雨の日', label: '春雨イベント制覇' },
+  { id: 'spring-rain-shelter', season: '春', motif: '雨の日', label: '雨宿り小屋解放' },
+  { id: 'spring-rain-rainbow', season: '春', motif: '雨の日', label: '虹のドロップ収集' },
 
-  // 冬カテゴリ
-  {
-    id: 'winter-snow',
-    category: '冬',
-    label: '雪モチーフ',
-    subItems: [
-      { id: 'summit', label: '白銀の山頂制覇' },
-      { id: 'snowman', label: '雪だるまコンプリート' },
-      { id: 'ice-corridor', label: '樹氷の回廊踏破' },
-    ],
-  },
-  {
-    id: 'winter-star',
-    category: '冬',
-    label: '星モチーフ',
-    subItems: [
-      { id: 'stargaze', label: '冬の天体観測' },
-      { id: 'shooting-star', label: '流れ星の破片収集' },
-      { id: 'star-chart', label: '星図の復元完了' },
-    ],
-  },
-  {
-    id: 'winter-newyear',
-    category: '冬',
-    label: '正月モチーフ',
-    subItems: [
-      { id: 'sunrise', label: '初日の出拝謁' },
-      { id: 'shrine', label: '神社参拝コンプリート' },
-      { id: 'arrow', label: '破魔矢の入手' },
-    ],
-  },
+  // 夏 - 太陽モチーフ
+  { id: 'summer-sun-climb', season: '夏', motif: '太陽', label: '真昼の頂上登頂' },
+  { id: 'summer-sun-amulet', season: '夏', motif: '太陽', label: '日輪の護符入手' },
+  { id: 'summer-sun-trial', season: '夏', motif: '太陽', label: '灼熱試練クリア' },
+
+  // 夏 - 海モチーフ
+  { id: 'summer-sea-deep', season: '夏', motif: '海', label: '深海ダンジョン踏破' },
+  { id: 'summer-sea-treasure', season: '夏', motif: '海', label: '沈没船の宝箱開封' },
+  { id: 'summer-sea-pearl', season: '夏', motif: '海', label: '真珠の首飾り入手' },
+
+  // 夏 - 蛍モチーフ
+  { id: 'summer-firefly-stream', season: '夏', motif: '蛍', label: '清流エリア探索' },
+  { id: 'summer-firefly-night', season: '夏', motif: '蛍', label: '夜間観測完了' },
+  { id: 'summer-firefly-lantern', season: '夏', motif: '蛍', label: '蛍火のランタン入手' },
+
+  // 秋 - 紅葉モチーフ
+  { id: 'autumn-maple-valley', season: '秋', motif: '紅葉', label: '紅葉渓谷踏破' },
+  { id: 'autumn-maple-carpet', season: '秋', motif: '紅葉', label: '落ち葉の絨毯散策' },
+  { id: 'autumn-maple-tapestry', season: '秋', motif: '紅葉', label: '錦秋のタペストリー入手' },
+
+  // 秋 - 月見モチーフ
+  { id: 'autumn-moon-spot', season: '秋', motif: '月見', label: '名月鑑賞スポット発見' },
+  { id: 'autumn-moon-dumpling', season: '秋', motif: '月見', label: '月見団子作り' },
+  { id: 'autumn-moon-treasure', season: '秋', motif: '月見', label: '十五夜の秘宝入手' },
+
+  // 秋 - 収穫モチーフ
+  { id: 'autumn-harvest-fruits', season: '秋', motif: '収穫', label: '豊作の果実収集' },
+  { id: 'autumn-harvest-festival', season: '秋', motif: '収穫', label: '秋祭りコンプリート' },
+  { id: 'autumn-harvest-ear', season: '秋', motif: '収穫', label: '黄金の稲穂入手' },
+
+  // 冬 - 雪モチーフ
+  { id: 'winter-snow-summit', season: '冬', motif: '雪', label: '白銀の山頂制覇' },
+  { id: 'winter-snow-snowman', season: '冬', motif: '雪', label: '雪だるまコンプリート' },
+  { id: 'winter-snow-ice-corridor', season: '冬', motif: '雪', label: '樹氷の回廊踏破' },
+
+  // 冬 - 星モチーフ
+  { id: 'winter-star-stargaze', season: '冬', motif: '星', label: '冬の天体観測' },
+  { id: 'winter-star-shooting-star', season: '冬', motif: '星', label: '流れ星の破片収集' },
+  { id: 'winter-star-star-chart', season: '冬', motif: '星', label: '星図の復元完了' },
+
+  // 冬 - 正月モチーフ
+  { id: 'winter-newyear-sunrise', season: '冬', motif: '正月', label: '初日の出拝謁' },
+  { id: 'winter-newyear-shrine', season: '冬', motif: '正月', label: '神社参拝コンプリート' },
+  { id: 'winter-newyear-arrow', season: '冬', motif: '正月', label: '破魔矢の入手' },
 ]
 
-export const ITEM_CATEGORIES = [...new Set(CHECKLIST_ITEMS.map((item) => item.category))]
+export const SEASONS = [...new Set(CHECKLIST_ITEMS.map((item) => item.season))]
+export const MOTIFS = [...new Set(CHECKLIST_ITEMS.map((item) => item.motif))]
+
+export const TAG_CATEGORIES = [
+  { id: 'season', label: '季節' },
+  { id: 'motif', label: 'モチーフ' },
+] as const
+
+export type TagCategoryType = (typeof TAG_CATEGORIES)[number]['id']
 
 /**
- * サブ要素の一意識別キーを生成する（フォーマット: `${itemId}:${subItemId}`）
+ * 総合達成率（0〜100%）を計算する
  */
-export function makeSubItemKey(itemId: string, subItemId: string): string {
-  return `${itemId}:${subItemId}`
-}
+export function calcAchievementRate(
+  checkedIds: Iterable<string>,
+  total: number = CHECKLIST_ITEMS.length,
+): number {
+  if (total === 0) return 0
+  const validIds = new Set(CHECKLIST_ITEMS.map((item) => item.id))
 
-/**
- * サブ要素キーからアイテムIDとサブ要素IDを分解する
- */
-export function parseSubItemKey(key: string): { itemId: string; subItemId: string } | null {
-  const separatorIndex = key.indexOf(':')
-  if (separatorIndex === -1) return null
-  return {
-    itemId: key.slice(0, separatorIndex),
-    subItemId: key.slice(separatorIndex + 1),
+  let checked = 0
+  for (const id of checkedIds) {
+    if (validIds.has(id)) checked += 1
   }
+
+  return Math.round((checked / total) * 100)
 }
 
 /**
- * 全アイテム内の全サブ要素キー一覧（Set）を取得
+ * 条件の定義（比較用）
  */
-export function getAllValidSubItemKeys(items: ChecklistItem[] = CHECKLIST_ITEMS): Set<string> {
-  const keys = new Set<string>()
-  for (const item of items) {
-    for (const sub of item.subItems) {
-      keys.add(makeSubItemKey(item.id, sub.id))
-    }
-  }
-  return keys
+export type ComparisonCondition = {
+  id: string // 一意の識別子
+  category: TagCategoryType // 'season' または 'motif'
+  value: string // 例: '春' または '桜'
 }
 
-/**
- * 単一アイテムの進捗状況を計算する
- */
-export type ItemProgress = {
+export type ConditionRateResult = {
   checkedCount: number
   totalCount: number
   rate: number
-  isCompleted: boolean
-  isInProgress: boolean
-  isUnstarted: boolean
 }
 
-export function getItemProgress(
-  item: ChecklistItem,
-  checkedKeys: Set<string>,
-): ItemProgress {
-  const totalCount = item.subItems.length
-  if (totalCount === 0) {
-    return {
-      checkedCount: 0,
-      totalCount: 0,
-      rate: 0,
-      isCompleted: true,
-      isInProgress: false,
-      isUnstarted: false,
+/**
+ * 特定の条件に合致するアイテム群に対する達成率を計算する
+ */
+export function calcConditionRate(
+  condition: Pick<ComparisonCondition, 'category' | 'value'>,
+  checkedIds: Set<string>,
+  items: ChecklistItem[] = CHECKLIST_ITEMS,
+): ConditionRateResult {
+  const matched = items.filter((item) => {
+    if (condition.category === 'season') {
+      return item.season === condition.value
     }
+    if (condition.category === 'motif') {
+      return item.motif === condition.value
+    }
+    return false
+  })
+
+  const totalCount = matched.length
+  if (totalCount === 0) {
+    return { checkedCount: 0, totalCount: 0, rate: 0 }
   }
 
   let checkedCount = 0
-  for (const sub of item.subItems) {
-    if (checkedKeys.has(makeSubItemKey(item.id, sub.id))) {
+  for (const item of matched) {
+    if (checkedIds.has(item.id)) {
       checkedCount += 1
     }
   }
 
   const rate = Math.round((checkedCount / totalCount) * 100)
-  const isCompleted = checkedCount === totalCount
-  const isUnstarted = checkedCount === 0
-  const isInProgress = !isCompleted && !isUnstarted
-
-  return {
-    checkedCount,
-    totalCount,
-    rate,
-    isCompleted,
-    isInProgress,
-    isUnstarted,
-  }
+  return { checkedCount, totalCount, rate }
 }
-
-/**
- * 全体の達成率（0〜100%）を計算する
- * サブ要素の総数に対するチェック済みサブ要素数の割合
- */
-export function calcAchievementRate(
-  checkedKeys: Iterable<string>,
-  items: ChecklistItem[] = CHECKLIST_ITEMS,
-): number {
-  const validKeys = getAllValidSubItemKeys(items)
-  if (validKeys.size === 0) return 0
-
-  let checked = 0
-  for (const key of checkedKeys) {
-    if (validKeys.has(key)) checked += 1
-  }
-
-  return Math.round((checked / validKeys.size) * 100)
-}
-
-/**
- * 条件（カテゴリ）別の達成状況および達成率を計算する
- */
-export type CategoryAchievement = {
-  category: string
-  checkedCount: number
-  totalCount: number
-  rate: number
-}
-
-export function calcCategoryAchievements(
-  checkedKeys: Set<string>,
-  items: ChecklistItem[] = CHECKLIST_ITEMS,
-): CategoryAchievement[] {
-  const categories = [...new Set(items.map((item) => item.category))]
-
-  return categories.map((category) => {
-    const categoryItems = items.filter((item) => item.category === category)
-    let totalCount = 0
-    let checkedCount = 0
-
-    for (const item of categoryItems) {
-      for (const sub of item.subItems) {
-        totalCount += 1
-        if (checkedKeys.has(makeSubItemKey(item.id, sub.id))) {
-          checkedCount += 1
-        }
-      }
-    }
-
-    const rate = totalCount === 0 ? 0 : Math.round((checkedCount / totalCount) * 100)
-
-    return {
-      category,
-      checkedCount,
-      totalCount,
-      rate,
-    }
-  })
-}
-
-/**
- * 設定された条件（指定アイテム一覧）に対する達成状況および達成率を計算する
- */
-export type ConditionAchievement = {
-  checkedCount: number
-  totalCount: number
-  rate: number
-}
-
-export function calcConditionAchievement(
-  items: ChecklistItem[],
-  checkedKeys: Set<string>,
-): ConditionAchievement {
-  let totalCount = 0
-  let checkedCount = 0
-
-  for (const item of items) {
-    for (const sub of item.subItems) {
-      totalCount += 1
-      if (checkedKeys.has(makeSubItemKey(item.id, sub.id))) {
-        checkedCount += 1
-      }
-    }
-  }
-
-  const rate = totalCount === 0 ? 0 : Math.round((checkedCount / totalCount) * 100)
-
-  return {
-    checkedCount,
-    totalCount,
-    rate,
-  }
-}
-
 
 /**
  * 絞り込み条件の定義
  */
-export type StatusFilter = 'all' | 'unstarted' | 'in_progress' | 'completed'
-
-export type FilterCondition = {
-  category: string // 'all' または 各カテゴリ名
-  status: StatusFilter
+export type FilterConfig = {
+  tagCategory: 'all' | TagCategoryType
+  tagValue: string // 'all' または 各タグ値
+  status: 'all' | 'uncompleted' | 'completed'
 }
 
 /**
@@ -334,25 +158,30 @@ export type FilterCondition = {
  */
 export function filterItems(
   items: ChecklistItem[],
-  condition: FilterCondition,
-  checkedKeys: Set<string>,
+  config: FilterConfig,
+  checkedIds: Set<string>,
 ): ChecklistItem[] {
   return items.filter((item) => {
-    // カテゴリによる絞り込み
-    if (condition.category !== 'all' && item.category !== condition.category) {
-      return false
+    // タグ絞り込み（メイン部分 + サブ部分）
+    if (config.tagCategory !== 'all') {
+      if (config.tagCategory === 'season') {
+        if (config.tagValue !== 'all' && item.season !== config.tagValue) {
+          return false
+        }
+      } else if (config.tagCategory === 'motif') {
+        if (config.tagValue !== 'all' && item.motif !== config.tagValue) {
+          return false
+        }
+      }
     }
 
-    // 進行ステータスによる絞り込み
-    if (condition.status !== 'all') {
-      const progress = getItemProgress(item, checkedKeys)
-      if (condition.status === 'completed' && !progress.isCompleted) {
+    // 進行ステータス絞り込み
+    if (config.status !== 'all') {
+      const isChecked = checkedIds.has(item.id)
+      if (config.status === 'completed' && !isChecked) {
         return false
       }
-      if (condition.status === 'in_progress' && !progress.isInProgress) {
-        return false
-      }
-      if (condition.status === 'unstarted' && !progress.isUnstarted) {
+      if (config.status === 'uncompleted' && isChecked) {
         return false
       }
     }
@@ -366,10 +195,9 @@ export function filterItems(
  */
 export type SortOption =
   | 'default'
-  | 'rate_desc'
-  | 'rate_asc'
   | 'name_asc'
   | 'uncompleted_first'
+  | 'completed_first'
 
 /**
  * アイテム一覧を並べ替える
@@ -377,33 +205,28 @@ export type SortOption =
 export function sortItems(
   items: ChecklistItem[],
   sortOption: SortOption,
-  checkedKeys: Set<string>,
+  checkedIds: Set<string>,
 ): ChecklistItem[] {
   const cloned = [...items]
 
   switch (sortOption) {
-    case 'rate_desc':
-      return cloned.sort((a, b) => {
-        const rateA = getItemProgress(a, checkedKeys).rate
-        const rateB = getItemProgress(b, checkedKeys).rate
-        return rateB - rateA
-      })
-    case 'rate_asc':
-      return cloned.sort((a, b) => {
-        const rateA = getItemProgress(a, checkedKeys).rate
-        const rateB = getItemProgress(b, checkedKeys).rate
-        return rateA - rateB
-      })
     case 'name_asc':
       return cloned.sort((a, b) => a.label.localeCompare(b.label, 'ja'))
     case 'uncompleted_first':
       return cloned.sort((a, b) => {
-        const compA = getItemProgress(a, checkedKeys).isCompleted ? 1 : 0
-        const compB = getItemProgress(b, checkedKeys).isCompleted ? 1 : 0
-        return compA - compB
+        const aChecked = checkedIds.has(a.id) ? 1 : 0
+        const bChecked = checkedIds.has(b.id) ? 1 : 0
+        return aChecked - bChecked
+      })
+    case 'completed_first':
+      return cloned.sort((a, b) => {
+        const aChecked = checkedIds.has(a.id) ? 1 : 0
+        const bChecked = checkedIds.has(b.id) ? 1 : 0
+        return bChecked - aChecked
       })
     case 'default':
     default:
       return cloned
   }
 }
+
