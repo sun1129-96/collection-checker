@@ -300,10 +300,7 @@ function App() {
         <header className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <div>
-              <span className="text-xs font-semibold uppercase tracking-wider text-indigo-600 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
-                第2週：要素一覧・条件別達成率比較
-              </span>
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 mt-1">
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900">
                 コレクションチェックリスト
               </h1>
             </div>
