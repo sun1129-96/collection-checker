@@ -96,21 +96,30 @@ export function calcAchievementRate(
 }
 
 /**
+ * 条件の一致モード（AND: 完全一致/すべてに一致, OR: いずれかを含む）
+ */
+export type MatchMode = 'and' | 'or'
+
+/**
  * 比較条件の定義（複数選択・複数軸の複合条件に対応）
  */
 export type ComparisonCondition = {
   id: string // 一意の識別子
   seasons: string[] // 対象の季節（空配列の場合は全季節）
   motifs: string[]  // 対象のモチーフ（空配列の場合は全モチーフ）
+  matchMode?: MatchMode // 一致条件（'and': 完全一致, 'or': いずれかを含む）
   customLabel?: string // 任意のカスタム表示名
 }
 
 /**
  * 比較条件の表示用ラベルを生成する
- * 例: "季節: 春, 夏" / "モチーフ: 桜" / "季節: 春 × モチーフ: 桜" / "すべての要素"
+ * 例: "季節: 春 × モチーフ: 桜 (AND条件)" / "季節: 春 または モチーフ: 桜 (OR条件)"
  */
 export function formatConditionLabel(
-  condition: Pick<ComparisonCondition, 'seasons' | 'motifs'> & { customLabel?: string },
+  condition: Pick<ComparisonCondition, 'seasons' | 'motifs'> & {
+    matchMode?: MatchMode
+    customLabel?: string
+  },
 ): string {
   if (condition.customLabel) {
     return condition.customLabel
@@ -127,7 +136,13 @@ export function formatConditionLabel(
   if (parts.length === 0) {
     return 'すべての要素'
   }
-  return parts.join(' × ')
+
+  const mode = condition.matchMode ?? 'and'
+  const isCompound = condition.seasons.length > 0 && condition.motifs.length > 0
+  const separator = mode === 'or' ? ' または ' : ' × '
+  const modeSuffix = isCompound ? (mode === 'or' ? ' (OR条件)' : ' (AND条件)') : ''
+
+  return `${parts.join(separator)}${modeSuffix}`
 }
 
 export type ConditionRateResult = {
@@ -140,12 +155,17 @@ export type ConditionRateResult = {
  * 比較条件に一致するアイテム群に対する達成率を計算する
  */
 export function calcComparisonConditionRate(
-  condition: Pick<ComparisonCondition, 'seasons' | 'motifs'>,
+  condition: Pick<ComparisonCondition, 'seasons' | 'motifs'> & { matchMode?: MatchMode },
   checkedIds: Set<string>,
   items: ChecklistItem[] = CHECKLIST_ITEMS,
 ): ConditionRateResult {
   return calcMultiConditionRate(
-    { seasons: condition.seasons, motifs: condition.motifs, status: 'all' },
+    {
+      seasons: condition.seasons,
+      motifs: condition.motifs,
+      status: 'all',
+      matchMode: condition.matchMode ?? 'and',
+    },
     checkedIds,
     items,
   )
@@ -161,7 +181,7 @@ export function calcConditionRate(
 ): ConditionRateResult {
   const seasons = condition.category === 'season' ? [condition.value] : []
   const motifs = condition.category === 'motif' ? [condition.value] : []
-  return calcComparisonConditionRate({ seasons, motifs }, checkedIds, items)
+  return calcComparisonConditionRate({ seasons, motifs, matchMode: 'and' }, checkedIds, items)
 }
 
 /**
@@ -171,12 +191,13 @@ export type MultiFilterConfig = {
   seasons: string[] // 空配列の場合は制限なし（すべての季節）
   motifs: string[]  // 空配列の場合は制限なし（すべてのモチーフ）
   status: 'all' | 'uncompleted' | 'completed'
+  matchMode?: MatchMode // 'and': 完全一致（すべてに一致）, 'or': いずれかを含む
 }
 
 /**
  * 複合条件に基づいてアイテム一覧を絞り込む
- * - 同一軸内（例: 春と夏）は OR 条件
- * - 異なる軸間（例: 季節とモチーフ）は AND 条件
+ * - matchMode === 'and' (デフォルト): 指定された各軸の条件すべてに完全一致する要素を抽出
+ * - matchMode === 'or': 指定された条件のいずれかを含む要素を抽出
  */
 export function filterItems(
   items: ChecklistItem[],
@@ -185,16 +206,34 @@ export function filterItems(
 ): ChecklistItem[] {
   const selectedSeasonsSet = new Set(config.seasons)
   const selectedMotifsSet = new Set(config.motifs)
+  const hasSeasonFilter = selectedSeasonsSet.size > 0
+  const hasMotifFilter = selectedMotifsSet.size > 0
+  const matchMode = config.matchMode ?? 'and'
 
   return items.filter((item) => {
-    // 季節の絞り込み（選択がある場合、いずれかに一致すること）
-    if (selectedSeasonsSet.size > 0 && !selectedSeasonsSet.has(item.season)) {
-      return false
-    }
-
-    // モチーフの絞り込み（選択がある場合、いずれかに一致すること）
-    if (selectedMotifsSet.size > 0 && !selectedMotifsSet.has(item.motif)) {
-      return false
+    // 季節およびモチーフ両方が指定されている場合の一致判定
+    if (hasSeasonFilter && hasMotifFilter) {
+      if (matchMode === 'and') {
+        // AND条件: 季節条件とモチーフ条件の両方に完全一致
+        if (!selectedSeasonsSet.has(item.season) || !selectedMotifsSet.has(item.motif)) {
+          return false
+        }
+      } else {
+        // OR条件: 季節条件またはモチーフ条件のいずれかを含む
+        if (!selectedSeasonsSet.has(item.season) && !selectedMotifsSet.has(item.motif)) {
+          return false
+        }
+      }
+    } else if (hasSeasonFilter) {
+      // 季節条件のみ指定されている場合
+      if (!selectedSeasonsSet.has(item.season)) {
+        return false
+      }
+    } else if (hasMotifFilter) {
+      // モチーフ条件のみ指定されている場合
+      if (!selectedMotifsSet.has(item.motif)) {
+        return false
+      }
     }
 
     // 進行ステータスの絞り込み

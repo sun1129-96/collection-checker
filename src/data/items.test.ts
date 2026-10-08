@@ -101,15 +101,26 @@ describe('calcComparisonConditionRate（複合比較条件に対する達成率�
     expect(result.rate).toBe(17)
   })
 
-  it('季節とモチーフの複合（例: 春 × 桜）の達成率が正しく計算されること', () => {
+  it('季節とモチーフの複合（例: 春 × 桜、AND条件）の達成率が正しく計算されること', () => {
     // 春かつ桜 = 3件中 2件完了 -> 67%
     const result = calcComparisonConditionRate(
-      { seasons: ['春'], motifs: ['桜'] },
+      { seasons: ['春'], motifs: ['桜'], matchMode: 'and' },
       checked,
     )
     expect(result.totalCount).toBe(3)
     expect(result.checkedCount).toBe(2)
     expect(result.rate).toBe(67)
+  })
+
+  it('季節とモチーフの複合（例: 春 または 太陽、OR条件）の達成率が正しく計算されること', () => {
+    // 春(9件: 2件チェック済み) または 太陽(3件: 1件チェック済み) = 計12件中 3件完了 -> 25%
+    const result = calcComparisonConditionRate(
+      { seasons: ['春'], motifs: ['太陽'], matchMode: 'or' },
+      checked,
+    )
+    expect(result.totalCount).toBe(12)
+    expect(result.checkedCount).toBe(3)
+    expect(result.rate).toBe(25)
   })
 })
 
@@ -122,8 +133,16 @@ describe('formatConditionLabel（比較条件のラベル生成）', () => {
     expect(formatConditionLabel({ seasons: [], motifs: ['桜', '蝶々'] })).toBe('モチーフ: 桜, 蝶々')
   })
 
-  it('季節とモチーフの複合条件の場合のフォーマットが正しいこと', () => {
-    expect(formatConditionLabel({ seasons: ['春'], motifs: ['桜'] })).toBe('季節: 春 × モチーフ: 桜')
+  it('季節とモチーフの複合条件（AND条件）の場合のフォーマットが正しいこと', () => {
+    expect(
+      formatConditionLabel({ seasons: ['春'], motifs: ['桜'], matchMode: 'and' }),
+    ).toBe('季節: 春 × モチーフ: 桜 (AND条件)')
+  })
+
+  it('季節とモチーフの複合条件（OR条件）の場合のフォーマットが正しいこと', () => {
+    expect(
+      formatConditionLabel({ seasons: ['春'], motifs: ['太陽'], matchMode: 'or' }),
+    ).toBe('季節: 春 または モチーフ: 太陽 (OR条件)')
   })
 
   it('未指定の場合はすべての要素と表示されること', () => {
@@ -151,10 +170,10 @@ describe('filterItems（複数選択および複数軸の複合絞り込み）',
     expect(filtered.every((item) => item.season === '春' || item.season === '夏')).toBe(true)
   })
 
-  it('季節が春でモチーフが桜のもの（異なる軸間の複合選択: AND条件）で絞り込めること', () => {
+  it('季節が春でモチーフが桜のもの（完全一致: AND条件）で絞り込めること', () => {
     const filtered = filterItems(
       CHECKLIST_ITEMS,
-      { seasons: ['春'], motifs: ['桜'], status: 'all' },
+      { seasons: ['春'], motifs: ['桜'], status: 'all', matchMode: 'and' },
       checked,
     )
     // 春かつ桜 = 3件
@@ -162,10 +181,21 @@ describe('filterItems（複数選択および複数軸の複合絞り込み）',
     expect(filtered.every((item) => item.season === '春' && item.motif === '桜')).toBe(true)
   })
 
+  it('季節が春またはモチーフが太陽のもの（いずれかを含む: OR条件）で絞り込めること', () => {
+    const filtered = filterItems(
+      CHECKLIST_ITEMS,
+      { seasons: ['春'], motifs: ['太陽'], status: 'all', matchMode: 'or' },
+      checked,
+    )
+    // 春9件 + 夏の太陽3件 = 12件
+    expect(filtered.length).toBe(12)
+    expect(filtered.every((item) => item.season === '春' || item.motif === '太陽')).toBe(true)
+  })
+
   it('季節が春・夏でモチーフが桜・太陽のもの（OR × AND複合条件）で絞り込めること', () => {
     const filtered = filterItems(
       CHECKLIST_ITEMS,
-      { seasons: ['春', '夏'], motifs: ['桜', '太陽'], status: 'all' },
+      { seasons: ['春', '夏'], motifs: ['桜', '太陽'], status: 'all', matchMode: 'and' },
       checked,
     )
     // (春かつ桜 3件) + (夏かつ太陽 3件) = 6件

@@ -10,6 +10,7 @@ import {
   formatConditionLabel,
   sortItems,
   type ComparisonCondition,
+  type MatchMode,
   type MultiFilterConfig,
   type SortOption,
   type TagCategoryType,
@@ -37,12 +38,15 @@ function getProgressWidthClass(rate: number): string {
 }
 
 /**
- * 2つの比較条件が同一であるかを判定（重複追加防止）
+ * 2つの比較条件が同一であるかを判定（重複追加防止、matchModeも照合）
  */
 function isSameCondition(
-  a: Pick<ComparisonCondition, 'seasons' | 'motifs'>,
-  b: Pick<ComparisonCondition, 'seasons' | 'motifs'>,
+  a: Pick<ComparisonCondition, 'seasons' | 'motifs' | 'matchMode'>,
+  b: Pick<ComparisonCondition, 'seasons' | 'motifs' | 'matchMode'>,
 ): boolean {
+  if ((a.matchMode ?? 'and') !== (b.matchMode ?? 'and')) {
+    return false
+  }
   if (a.seasons.length !== b.seasons.length || a.motifs.length !== b.motifs.length) {
     return false
   }
@@ -65,20 +69,22 @@ function App() {
     isSupabaseConfigured ? null : 'Supabaseの接続情報が未設定です。環境変数にURLとanon keyを追加してください。',
   )
 
-  // 比較表示する条件別達成率リスト（複合条件に対応）
+  // 比較表示する条件別達成率リスト（複合条件・一致モードに対応）
   const [comparedConditions, setComparedConditions] = useState<ComparisonCondition[]>([
-    { id: 'init-spring', seasons: ['春'], motifs: [] },
-    { id: 'init-summer', seasons: ['夏'], motifs: [] },
+    { id: 'init-spring', seasons: ['春'], motifs: [], matchMode: 'and' },
+    { id: 'init-summer', seasons: ['夏'], motifs: [], matchMode: 'and' },
   ])
 
   // 新規比較条件作成フォーム用State（軸を選択してチェック形式で複数・複合指定）
   const [newCondSeasons, setNewCondSeasons] = useState<string[]>([])
   const [newCondMotifs, setNewCondMotifs] = useState<string[]>([])
+  const [newCondMatchMode, setNewCondMatchMode] = useState<MatchMode>('and')
   const [activeNewCondTab, setActiveNewCondTab] = useState<TagCategoryType>('season')
 
-  // 絞り込み条件（複数選択対応）
+  // 絞り込み条件（複数選択・AND/OR一致モード対応）
   const [filterSeasons, setFilterSeasons] = useState<string[]>([])
   const [filterMotifs, setFilterMotifs] = useState<string[]>([])
+  const [filterMatchMode, setFilterMatchMode] = useState<MatchMode>('and')
   const [activeFilterTab, setActiveFilterTab] = useState<TagCategoryType>('season')
   const [statusFilter, setStatusFilter] = useState<'all' | 'uncompleted' | 'completed'>('all')
 
@@ -95,7 +101,8 @@ function App() {
     seasons: filterSeasons,
     motifs: filterMotifs,
     status: statusFilter,
-  }), [filterSeasons, filterMotifs, statusFilter])
+    matchMode: filterMatchMode,
+  }), [filterSeasons, filterMotifs, statusFilter, filterMatchMode])
 
   // 絞り込みおよび並び替えが適用された表示対象要素一覧
   const displayedItems = useMemo(() => {
@@ -184,7 +191,11 @@ function App() {
     if (newCondSeasons.length === 0 && newCondMotifs.length === 0) return
 
     const isDuplicate = comparedConditions.some((c) =>
-      isSameCondition(c, { seasons: newCondSeasons, motifs: newCondMotifs }),
+      isSameCondition(c, {
+        seasons: newCondSeasons,
+        motifs: newCondMotifs,
+        matchMode: newCondMatchMode,
+      }),
     )
     if (isDuplicate) return
 
@@ -192,6 +203,7 @@ function App() {
       id: `cond-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       seasons: [...newCondSeasons],
       motifs: [...newCondMotifs],
+      matchMode: newCondMatchMode,
     }
     setComparedConditions([...comparedConditions, newCondition])
     setNewCondSeasons([])
@@ -203,7 +215,11 @@ function App() {
     if (filterSeasons.length === 0 && filterMotifs.length === 0) return
 
     const isDuplicate = comparedConditions.some((c) =>
-      isSameCondition(c, { seasons: filterSeasons, motifs: filterMotifs }),
+      isSameCondition(c, {
+        seasons: filterSeasons,
+        motifs: filterMotifs,
+        matchMode: filterMatchMode,
+      }),
     )
     if (isDuplicate) return
 
@@ -211,6 +227,7 @@ function App() {
       id: `cond-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       seasons: [...filterSeasons],
       motifs: [...filterMotifs],
+      matchMode: filterMatchMode,
     }
     setComparedConditions([...comparedConditions, newCondition])
   }
@@ -242,6 +259,7 @@ function App() {
   function handleApplyFilterFromCondition(condition: ComparisonCondition) {
     setFilterSeasons([...condition.seasons])
     setFilterMotifs([...condition.motifs])
+    setFilterMatchMode(condition.matchMode ?? 'and')
     if (condition.seasons.length > 0 && condition.motifs.length === 0) {
       setActiveFilterTab('season')
     } else if (condition.motifs.length > 0 && condition.seasons.length === 0) {
@@ -253,6 +271,7 @@ function App() {
   function handleResetFilters() {
     setFilterSeasons([])
     setFilterMotifs([])
+    setFilterMatchMode('and')
     setStatusFilter('all')
     setSortOption('default')
   }
@@ -352,7 +371,7 @@ function App() {
             <div>
               <h2 className="text-sm font-semibold text-zinc-800">条件別達成率の比較</h2>
               <p className="text-xs text-zinc-400">
-                軸を選んでチェックした組み合わせ条件を複数追加し、達成率を並べて比較できます
+                軸を選んでチェックした組み合わせ条件（AND完全一致／ORいずれかを含む）を追加し、達成率を並べて比較できます
               </p>
             </div>
             {comparedConditions.length > 0 && (
@@ -379,6 +398,7 @@ function App() {
                 const hasSeason = cond.seasons.length > 0
                 const hasMotif = cond.motifs.length > 0
                 const isHybrid = hasSeason && hasMotif
+                const isOrMode = cond.matchMode === 'or'
 
                 return (
                   <div
@@ -394,7 +414,15 @@ function App() {
                           </span>
                         )}
                         {isHybrid && (
-                          <span className="text-xs text-zinc-400 font-bold">×</span>
+                          <span
+                            className={`text-[10px] px-1.5 py-0.5 rounded font-bold border ${
+                              isOrMode
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : 'bg-purple-50 text-purple-700 border-purple-200'
+                            }`}
+                          >
+                            {isOrMode ? 'または (OR)' : 'かつ (AND)'}
+                          </span>
                         )}
                         {hasMotif && (
                           <span className="text-xs px-2 py-0.5 rounded font-medium border bg-indigo-50 text-indigo-800 border-indigo-200">
@@ -440,7 +468,9 @@ function App() {
                       <div
                         className={`h-full ${
                           isHybrid
-                            ? 'bg-purple-600'
+                            ? isOrMode
+                              ? 'bg-emerald-600'
+                              : 'bg-purple-600'
                             : hasSeason
                             ? 'bg-amber-600'
                             : 'bg-indigo-600'
@@ -464,41 +494,75 @@ function App() {
                   type="button"
                   onClick={handleAddCurrentFilterToComparison}
                   className="text-[11px] text-indigo-600 hover:text-indigo-800 font-medium cursor-pointer"
-                  title="一覧で絞り込んでいる現在の条件を比較に追加します"
+                  title="一覧で絞り込んでいる現在の条件（AND/OR含む）を比較に追加します"
                 >
                   ⚡ 現在の絞り込み条件を追加
                 </button>
               )}
             </div>
 
-            {/* 軸選択タブ（季節 / モチーフ） */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-zinc-500 shrink-0">
-                設定する軸:
-              </span>
-              <div className="flex items-center gap-1.5 p-1 bg-zinc-100 rounded-lg">
-                <button
-                  type="button"
-                  onClick={() => setActiveNewCondTab('season')}
-                  className={`text-xs px-2.5 py-1 rounded-md font-medium transition-all cursor-pointer ${
-                    activeNewCondTab === 'season'
-                      ? 'bg-white text-zinc-900 shadow-2xs'
-                      : 'text-zinc-600 hover:text-zinc-900'
-                  }`}
-                >
-                  季節 {newCondSeasons.length > 0 && `(${newCondSeasons.length})`}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveNewCondTab('motif')}
-                  className={`text-xs px-2.5 py-1 rounded-md font-medium transition-all cursor-pointer ${
-                    activeNewCondTab === 'motif'
-                      ? 'bg-white text-zinc-900 shadow-2xs'
-                      : 'text-zinc-600 hover:text-zinc-900'
-                  }`}
-                >
-                  モチーフ {newCondMotifs.length > 0 && `(${newCondMotifs.length})`}
-                </button>
+            {/* 軸選択タブ & 一致モード選択 */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              {/* 軸選択タブ */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-zinc-500 shrink-0">
+                  設定する軸:
+                </span>
+                <div className="flex items-center gap-1.5 p-1 bg-zinc-100 rounded-lg">
+                  <button
+                    type="button"
+                    onClick={() => setActiveNewCondTab('season')}
+                    className={`text-xs px-2.5 py-1 rounded-md font-medium transition-all cursor-pointer ${
+                      activeNewCondTab === 'season'
+                        ? 'bg-white text-zinc-900 shadow-2xs font-semibold'
+                        : 'text-zinc-600 hover:text-zinc-900'
+                    }`}
+                  >
+                    季節 {newCondSeasons.length > 0 && `(${newCondSeasons.length})`}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveNewCondTab('motif')}
+                    className={`text-xs px-2.5 py-1 rounded-md font-medium transition-all cursor-pointer ${
+                      activeNewCondTab === 'motif'
+                        ? 'bg-white text-zinc-900 shadow-2xs font-semibold'
+                        : 'text-zinc-600 hover:text-zinc-900'
+                    }`}
+                  >
+                    モチーフ {newCondMotifs.length > 0 && `(${newCondMotifs.length})`}
+                  </button>
+                </div>
+              </div>
+
+              {/* 一致条件（AND: 完全一致 / OR: いずれかを含む） */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-zinc-500 shrink-0">
+                  一致条件:
+                </span>
+                <div className="flex items-center gap-1 p-0.5 bg-zinc-100 rounded-lg">
+                  <button
+                    type="button"
+                    onClick={() => setNewCondMatchMode('and')}
+                    className={`text-xs px-2.5 py-1 rounded-md font-medium transition-all cursor-pointer ${
+                      newCondMatchMode === 'and'
+                        ? 'bg-white text-zinc-900 shadow-2xs font-semibold'
+                        : 'text-zinc-600 hover:text-zinc-900'
+                    }`}
+                  >
+                    完全一致 (AND)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewCondMatchMode('or')}
+                    className={`text-xs px-2.5 py-1 rounded-md font-medium transition-all cursor-pointer ${
+                      newCondMatchMode === 'or'
+                        ? 'bg-white text-zinc-900 shadow-2xs font-semibold'
+                        : 'text-zinc-600 hover:text-zinc-900'
+                    }`}
+                  >
+                    いずれかを含む (OR)
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -618,7 +682,15 @@ function App() {
                       </span>
                     )}
                     {newCondSeasons.length > 0 && newCondMotifs.length > 0 && (
-                      <span className="text-zinc-400 font-bold text-xs">×</span>
+                      <span
+                        className={`text-[10px] px-1.5 py-0.5 rounded font-bold border ${
+                          newCondMatchMode === 'or'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : 'bg-purple-50 text-purple-700 border-purple-200'
+                        }`}
+                      >
+                        {newCondMatchMode === 'or' ? 'または (OR)' : 'かつ (AND)'}
+                      </span>
                     )}
                     {newCondMotifs.length > 0 && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-800 border border-indigo-200">
@@ -688,34 +760,71 @@ function App() {
             )}
           </div>
 
-          {/* 軸選択タブ（季節 / モチーフ） */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-zinc-600 shrink-0">
-              絞り込み軸:
-            </span>
-            <div className="flex items-center gap-1.5 p-1 bg-zinc-100 rounded-lg">
-              <button
-                type="button"
-                onClick={() => setActiveFilterTab('season')}
-                className={`text-xs px-3 py-1.5 rounded-md font-medium transition-all cursor-pointer ${
-                  activeFilterTab === 'season'
-                    ? 'bg-white text-zinc-900 shadow-2xs'
-                    : 'text-zinc-600 hover:text-zinc-900'
-                }`}
-              >
-                季節 {filterSeasons.length > 0 && `(${filterSeasons.length})`}
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveFilterTab('motif')}
-                className={`text-xs px-3 py-1.5 rounded-md font-medium transition-all cursor-pointer ${
-                  activeFilterTab === 'motif'
-                    ? 'bg-white text-zinc-900 shadow-2xs'
-                    : 'text-zinc-600 hover:text-zinc-900'
-                }`}
-              >
-                モチーフ {filterMotifs.length > 0 && `(${filterMotifs.length})`}
-              </button>
+          {/* 軸選択タブ & 結合方法（AND / OR） */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            {/* 軸選択タブ（季節 / モチーフ） */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-zinc-600 shrink-0">
+                絞り込み軸:
+              </span>
+              <div className="flex items-center gap-1.5 p-1 bg-zinc-100 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => setActiveFilterTab('season')}
+                  className={`text-xs px-3 py-1.5 rounded-md font-medium transition-all cursor-pointer ${
+                    activeFilterTab === 'season'
+                      ? 'bg-white text-zinc-900 shadow-2xs font-semibold'
+                      : 'text-zinc-600 hover:text-zinc-900'
+                  }`}
+                >
+                  季節 {filterSeasons.length > 0 && `(${filterSeasons.length})`}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveFilterTab('motif')}
+                  className={`text-xs px-3 py-1.5 rounded-md font-medium transition-all cursor-pointer ${
+                    activeFilterTab === 'motif'
+                      ? 'bg-white text-zinc-900 shadow-2xs font-semibold'
+                      : 'text-zinc-600 hover:text-zinc-900'
+                  }`}
+                >
+                  モチーフ {filterMotifs.length > 0 && `(${filterMotifs.length})`}
+                </button>
+              </div>
+            </div>
+
+            {/* 結合方法（AND: 完全一致 / OR: いずれかを含む） */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-zinc-600 shrink-0">
+                結合方法:
+              </span>
+              <div className="flex items-center gap-1 p-0.5 bg-zinc-100 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => setFilterMatchMode('and')}
+                  className={`text-xs px-2.5 py-1 rounded-md font-medium transition-all cursor-pointer ${
+                    filterMatchMode === 'and'
+                      ? 'bg-white text-zinc-900 shadow-2xs font-semibold'
+                      : 'text-zinc-600 hover:text-zinc-900'
+                  }`}
+                >
+                  完全一致 (AND)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterMatchMode('or')}
+                  className={`text-xs px-2.5 py-1 rounded-md font-medium transition-all cursor-pointer ${
+                    filterMatchMode === 'or'
+                      ? 'bg-white text-zinc-900 shadow-2xs font-semibold'
+                      : 'text-zinc-600 hover:text-zinc-900'
+                  }`}
+                >
+                  いずれかを含む (OR)
+                </button>
+              </div>
+              <span className="text-[11px] text-zinc-400 hidden sm:inline">
+                {filterMatchMode === 'and' ? '全条件に合致' : 'いずれかを含む'}
+              </span>
             </div>
           </div>
 
@@ -831,6 +940,17 @@ function App() {
                     </button>
                   </span>
                 )}
+                {filterSeasons.length > 0 && filterMotifs.length > 0 && (
+                  <span
+                    className={`text-[10px] px-1.5 py-0.5 rounded font-bold border ${
+                      filterMatchMode === 'or'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-purple-50 text-purple-700 border-purple-200'
+                    }`}
+                  >
+                    {filterMatchMode === 'or' ? 'または (OR)' : 'かつ (AND)'}
+                  </span>
+                )}
                 {filterMotifs.length > 0 && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-800 border border-indigo-200">
                     <span>モチーフ: {filterMotifs.join(', ')}</span>
@@ -849,7 +969,7 @@ function App() {
                 type="button"
                 onClick={handleAddCurrentFilterToComparison}
                 className="text-[11px] text-indigo-600 hover:text-indigo-800 font-medium cursor-pointer"
-                title="この絞り込み条件を上部の条件別達成率比較リストに追加します"
+                title="この絞り込み条件（AND/OR含む）を上部の条件別達成率比較リストに追加します"
               >
                 + この絞り込みを比較に追加
               </button>
