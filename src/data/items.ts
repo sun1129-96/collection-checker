@@ -96,12 +96,38 @@ export function calcAchievementRate(
 }
 
 /**
- * 条件の定義（比較用）
+ * 比較条件の定義（複数選択・複数軸の複合条件に対応）
  */
 export type ComparisonCondition = {
   id: string // 一意の識別子
-  category: TagCategoryType // 'season' または 'motif'
-  value: string // 例: '春' または '桜'
+  seasons: string[] // 対象の季節（空配列の場合は全季節）
+  motifs: string[]  // 対象のモチーフ（空配列の場合は全モチーフ）
+  customLabel?: string // 任意のカスタム表示名
+}
+
+/**
+ * 比較条件の表示用ラベルを生成する
+ * 例: "季節: 春, 夏" / "モチーフ: 桜" / "季節: 春 × モチーフ: 桜" / "すべての要素"
+ */
+export function formatConditionLabel(
+  condition: Pick<ComparisonCondition, 'seasons' | 'motifs'> & { customLabel?: string },
+): string {
+  if (condition.customLabel) {
+    return condition.customLabel
+  }
+
+  const parts: string[] = []
+  if (condition.seasons.length > 0) {
+    parts.push(`季節: ${condition.seasons.join(', ')}`)
+  }
+  if (condition.motifs.length > 0) {
+    parts.push(`モチーフ: ${condition.motifs.join(', ')}`)
+  }
+
+  if (parts.length === 0) {
+    return 'すべての要素'
+  }
+  return parts.join(' × ')
 }
 
 export type ConditionRateResult = {
@@ -111,37 +137,31 @@ export type ConditionRateResult = {
 }
 
 /**
- * 特定の条件に合致するアイテム群に対する達成率を計算する
+ * 比較条件に一致するアイテム群に対する達成率を計算する
  */
-export function calcConditionRate(
-  condition: Pick<ComparisonCondition, 'category' | 'value'>,
+export function calcComparisonConditionRate(
+  condition: Pick<ComparisonCondition, 'seasons' | 'motifs'>,
   checkedIds: Set<string>,
   items: ChecklistItem[] = CHECKLIST_ITEMS,
 ): ConditionRateResult {
-  const matched = items.filter((item) => {
-    if (condition.category === 'season') {
-      return item.season === condition.value
-    }
-    if (condition.category === 'motif') {
-      return item.motif === condition.value
-    }
-    return false
-  })
+  return calcMultiConditionRate(
+    { seasons: condition.seasons, motifs: condition.motifs, status: 'all' },
+    checkedIds,
+    items,
+  )
+}
 
-  const totalCount = matched.length
-  if (totalCount === 0) {
-    return { checkedCount: 0, totalCount: 0, rate: 0 }
-  }
-
-  let checkedCount = 0
-  for (const item of matched) {
-    if (checkedIds.has(item.id)) {
-      checkedCount += 1
-    }
-  }
-
-  const rate = Math.round((checkedCount / totalCount) * 100)
-  return { checkedCount, totalCount, rate }
+/**
+ * 特定の単一タグ条件に対する達成率を計算する（後方互換用）
+ */
+export function calcConditionRate(
+  condition: { category: TagCategoryType; value: string },
+  checkedIds: Set<string>,
+  items: ChecklistItem[] = CHECKLIST_ITEMS,
+): ConditionRateResult {
+  const seasons = condition.category === 'season' ? [condition.value] : []
+  const motifs = condition.category === 'motif' ? [condition.value] : []
+  return calcComparisonConditionRate({ seasons, motifs }, checkedIds, items)
 }
 
 /**

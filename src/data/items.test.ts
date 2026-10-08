@@ -4,8 +4,10 @@ import {
   MOTIFS,
   SEASONS,
   calcAchievementRate,
+  calcComparisonConditionRate,
   calcConditionRate,
   filterItems,
+  formatConditionLabel,
   sortItems,
 } from './items'
 
@@ -78,6 +80,60 @@ describe('calcConditionRate（特定タグ条件に対する達成率計算）',
     expect(result.totalCount).toBe(0)
     expect(result.checkedCount).toBe(0)
     expect(result.rate).toBe(0)
+  })
+})
+
+describe('calcComparisonConditionRate（複合比較条件に対する達成率計算）', () => {
+  const checked = new Set([
+    'spring-sakura-spot',
+    'spring-sakura-photo',
+    'summer-sun-climb',
+  ])
+
+  it('季節の複数選択（例: 春と夏）の達成率が正しく計算されること', () => {
+    // 春9件 + 夏9件 = 18件中 3件完了 -> 17%
+    const result = calcComparisonConditionRate(
+      { seasons: ['春', '夏'], motifs: [] },
+      checked,
+    )
+    expect(result.totalCount).toBe(18)
+    expect(result.checkedCount).toBe(3)
+    expect(result.rate).toBe(17)
+  })
+
+  it('季節とモチーフの複合（例: 春 × 桜）の達成率が正しく計算されること', () => {
+    // 春かつ桜 = 3件中 2件完了 -> 67%
+    const result = calcComparisonConditionRate(
+      { seasons: ['春'], motifs: ['桜'] },
+      checked,
+    )
+    expect(result.totalCount).toBe(3)
+    expect(result.checkedCount).toBe(2)
+    expect(result.rate).toBe(67)
+  })
+})
+
+describe('formatConditionLabel（比較条件のラベル生成）', () => {
+  it('季節のみの場合のフォーマットが正しいこと', () => {
+    expect(formatConditionLabel({ seasons: ['春', '夏'], motifs: [] })).toBe('季節: 春, 夏')
+  })
+
+  it('モチーフのみの場合のフォーマットが正しいこと', () => {
+    expect(formatConditionLabel({ seasons: [], motifs: ['桜', '蝶々'] })).toBe('モチーフ: 桜, 蝶々')
+  })
+
+  it('季節とモチーフの複合条件の場合のフォーマットが正しいこと', () => {
+    expect(formatConditionLabel({ seasons: ['春'], motifs: ['桜'] })).toBe('季節: 春 × モチーフ: 桜')
+  })
+
+  it('未指定の場合はすべての要素と表示されること', () => {
+    expect(formatConditionLabel({ seasons: [], motifs: [] })).toBe('すべての要素')
+  })
+
+  it('カスタムラベルが指定されている場合はそれが優先されること', () => {
+    expect(
+      formatConditionLabel({ seasons: ['春'], motifs: [], customLabel: 'お気に入り条件' }),
+    ).toBe('お気に入り条件')
   })
 })
 
