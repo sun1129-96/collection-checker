@@ -145,37 +145,39 @@ export function calcConditionRate(
 }
 
 /**
- * 絞り込み条件の定義
+ * 複数選択および複数軸の複合絞り込み条件の定義
  */
-export type FilterConfig = {
-  tagCategory: 'all' | TagCategoryType
-  tagValue: string // 'all' または 各タグ値
+export type MultiFilterConfig = {
+  seasons: string[] // 空配列の場合は制限なし（すべての季節）
+  motifs: string[]  // 空配列の場合は制限なし（すべてのモチーフ）
   status: 'all' | 'uncompleted' | 'completed'
 }
 
 /**
- * アイテム一覧を絞り込む
+ * 複合条件に基づいてアイテム一覧を絞り込む
+ * - 同一軸内（例: 春と夏）は OR 条件
+ * - 異なる軸間（例: 季節とモチーフ）は AND 条件
  */
 export function filterItems(
   items: ChecklistItem[],
-  config: FilterConfig,
+  config: MultiFilterConfig,
   checkedIds: Set<string>,
 ): ChecklistItem[] {
+  const selectedSeasonsSet = new Set(config.seasons)
+  const selectedMotifsSet = new Set(config.motifs)
+
   return items.filter((item) => {
-    // タグ絞り込み（メイン部分 + サブ部分）
-    if (config.tagCategory !== 'all') {
-      if (config.tagCategory === 'season') {
-        if (config.tagValue !== 'all' && item.season !== config.tagValue) {
-          return false
-        }
-      } else if (config.tagCategory === 'motif') {
-        if (config.tagValue !== 'all' && item.motif !== config.tagValue) {
-          return false
-        }
-      }
+    // 季節の絞り込み（選択がある場合、いずれかに一致すること）
+    if (selectedSeasonsSet.size > 0 && !selectedSeasonsSet.has(item.season)) {
+      return false
     }
 
-    // 進行ステータス絞り込み
+    // モチーフの絞り込み（選択がある場合、いずれかに一致すること）
+    if (selectedMotifsSet.size > 0 && !selectedMotifsSet.has(item.motif)) {
+      return false
+    }
+
+    // 進行ステータスの絞り込み
     if (config.status !== 'all') {
       const isChecked = checkedIds.has(item.id)
       if (config.status === 'completed' && !isChecked) {
@@ -188,6 +190,31 @@ export function filterItems(
 
     return true
   })
+}
+
+/**
+ * 複合絞り込み条件に一致するアイテム群に対する達成率を計算する
+ */
+export function calcMultiConditionRate(
+  config: MultiFilterConfig,
+  checkedIds: Set<string>,
+  items: ChecklistItem[] = CHECKLIST_ITEMS,
+): ConditionRateResult {
+  const matched = filterItems(items, { ...config, status: 'all' }, checkedIds)
+  const totalCount = matched.length
+  if (totalCount === 0) {
+    return { checkedCount: 0, totalCount: 0, rate: 0 }
+  }
+
+  let checkedCount = 0
+  for (const item of matched) {
+    if (checkedIds.has(item.id)) {
+      checkedCount += 1
+    }
+  }
+
+  const rate = Math.round((checkedCount / totalCount) * 100)
+  return { checkedCount, totalCount, rate }
 }
 
 /**
@@ -229,4 +256,5 @@ export function sortItems(
       return cloned
   }
 }
+
 

@@ -6,10 +6,11 @@ import {
   TAG_CATEGORIES,
   calcAchievementRate,
   calcConditionRate,
+  calcMultiConditionRate,
   filterItems,
   sortItems,
   type ComparisonCondition,
-  type FilterConfig,
+  type MultiFilterConfig,
   type SortOption,
   type TagCategoryType,
 } from './data/items'
@@ -55,9 +56,10 @@ function App() {
   const [newConditionCategory, setNewConditionCategory] = useState<TagCategoryType>('season')
   const [newConditionValue, setNewConditionValue] = useState<string>('秋')
 
-  // 絞り込み条件（2段階: まずタグのメイン部分を選択し、その中で絞り込み）
-  const [selectedTagCategory, setSelectedTagCategory] = useState<'all' | TagCategoryType>('all')
-  const [selectedTagValue, setSelectedTagValue] = useState<string>('all')
+  // 絞り込み条件（複数選択対応）
+  const [filterSeasons, setFilterSeasons] = useState<string[]>([])
+  const [filterMotifs, setFilterMotifs] = useState<string[]>([])
+  const [activeFilterTab, setActiveFilterTab] = useState<TagCategoryType>('season')
   const [statusFilter, setStatusFilter] = useState<'all' | 'uncompleted' | 'completed'>('all')
 
   // 並べ替え条件
@@ -69,17 +71,26 @@ function App() {
   const achievementRate = useMemo(() => calcAchievementRate(checkedIds), [checkedIds])
 
   // 絞り込み設定オブジェクト
-  const filterConfig = useMemo<FilterConfig>(() => ({
-    tagCategory: selectedTagCategory,
-    tagValue: selectedTagValue,
+  const filterConfig = useMemo<MultiFilterConfig>(() => ({
+    seasons: filterSeasons,
+    motifs: filterMotifs,
     status: statusFilter,
-  }), [selectedTagCategory, selectedTagValue, statusFilter])
+  }), [filterSeasons, filterMotifs, statusFilter])
 
   // 絞り込みおよび並び替えが適用された表示対象要素一覧
   const displayedItems = useMemo(() => {
     const filtered = filterItems(CHECKLIST_ITEMS, filterConfig, checkedIds)
     return sortItems(filtered, sortOption, checkedIds)
   }, [filterConfig, sortOption, checkedIds])
+
+  // フィルターが適用されているかどうかの判定
+  const isFilterActive = filterSeasons.length > 0 || filterMotifs.length > 0 || statusFilter !== 'all'
+
+  // 現在の絞り込み条件に対する達成状況
+  const currentFilteredRate = useMemo(
+    () => calcMultiConditionRate(filterConfig, checkedIds),
+    [filterConfig, checkedIds],
+  )
 
   // マウント時にSupabaseから最新進捗を取得
   useEffect(() => {
@@ -150,16 +161,41 @@ function App() {
     setComparedConditions(comparedConditions.filter((c) => c.id !== id))
   }
 
-  // 比較条件カードをクリックしてその条件で絞り込む
-  function handleApplyFilterFromCondition(condition: ComparisonCondition) {
-    setSelectedTagCategory(condition.category)
-    setSelectedTagValue(condition.value)
+  // 季節フィルターのトグル操作
+  function toggleSeasonFilter(season: string) {
+    if (filterSeasons.includes(season)) {
+      setFilterSeasons(filterSeasons.filter((s) => s !== season))
+    } else {
+      setFilterSeasons([...filterSeasons, season])
+    }
   }
 
-  // タグメイン部分切り替え時のハンドラ
-  function handleTagCategoryChange(cat: 'all' | TagCategoryType) {
-    setSelectedTagCategory(cat)
-    setSelectedTagValue('all')
+  // モチーフフィルターのトグル操作
+  function toggleMotifFilter(motif: string) {
+    if (filterMotifs.includes(motif)) {
+      setFilterMotifs(filterMotifs.filter((m) => m !== motif))
+    } else {
+      setFilterMotifs([...filterMotifs, motif])
+    }
+  }
+
+  // 比較条件カードをクリックしてその条件で絞り込む
+  function handleApplyFilterFromCondition(condition: ComparisonCondition) {
+    if (condition.category === 'season') {
+      setFilterSeasons([condition.value])
+      setActiveFilterTab('season')
+    } else {
+      setFilterMotifs([condition.value])
+      setActiveFilterTab('motif')
+    }
+  }
+
+  // フィルターのリセット
+  function handleResetFilters() {
+    setFilterSeasons([])
+    setFilterMotifs([])
+    setStatusFilter('all')
+    setSortOption('default')
   }
 
   // 比較条件追加フォームでタグ種別が切り替わったときの初期値セット
@@ -218,7 +254,7 @@ function App() {
             </div>
           </div>
           <p className="text-xs sm:text-sm text-zinc-500">
-            各要素をチェックすると達成率が自動更新されます。比較したい条件を追加して達成率の比較を行えます。
+            各要素をチェックすると達成率が自動更新されます。軸を選んでチェック形式で複数条件の組み合わせ絞り込みを行えます。
           </p>
         </header>
 
@@ -392,93 +428,190 @@ function App() {
           </div>
         </section>
 
-        {/* 絞り込み & 並べ替え コントロールバー（タグのメイン部分選択 → その中での絞り込み） */}
-        <section className="bg-white border border-zinc-200 rounded-xl p-4 shadow-xs flex flex-col gap-3">
-          <div className="flex items-center justify-between pb-1 border-b border-zinc-100">
-            <h3 className="text-xs font-bold text-zinc-700 uppercase tracking-wide">
-              絞り込み・並べ替え
-            </h3>
-            {(selectedTagCategory !== 'all' || selectedTagValue !== 'all' || statusFilter !== 'all' || sortOption !== 'default') && (
+        {/* 絞り込み & 並べ替え コントロールバー（軸を選択し、チェック形式で項目を選択） */}
+        <section className="bg-white border border-zinc-200 rounded-xl p-4 shadow-xs flex flex-col gap-3.5">
+          <div className="flex items-center justify-between pb-2 border-b border-zinc-100">
+            <div>
+              <h3 className="text-xs font-bold text-zinc-800 uppercase tracking-wide">
+                絞り込み（軸を選択してチェック）
+              </h3>
+              <p className="text-[11px] text-zinc-400">
+                軸ごとに複数の項目をチェックして組み合わせ絞り込みができます
+              </p>
+            </div>
+            {isFilterActive && (
               <button
                 type="button"
-                onClick={() => {
-                  setSelectedTagCategory('all')
-                  setSelectedTagValue('all')
-                  setStatusFilter('all')
-                  setSortOption('default')
-                }}
+                onClick={handleResetFilters}
                 className="text-xs text-indigo-600 hover:text-indigo-800 font-medium cursor-pointer"
               >
-                条件をすべてリセット
+                すべての条件を解除
               </button>
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-            {/* Step 1: タグのメイン部分の選択 */}
-            <div className="flex flex-col gap-1">
-              <label
-                htmlFor="tag-main-select"
-                className="text-xs font-semibold text-zinc-600"
+          {/* 軸選択タブ（季節 / モチーフ） */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-zinc-600 shrink-0">
+              絞り込み軸:
+            </span>
+            <div className="flex items-center gap-1.5 p-1 bg-zinc-100 rounded-lg">
+              <button
+                type="button"
+                onClick={() => setActiveFilterTab('season')}
+                className={`text-xs px-3 py-1.5 rounded-md font-medium transition-all cursor-pointer ${
+                  activeFilterTab === 'season'
+                    ? 'bg-white text-zinc-900 shadow-2xs'
+                    : 'text-zinc-600 hover:text-zinc-900'
+                }`}
               >
-                1. 絞り込みタグ軸
-              </label>
-              <select
-                id="tag-main-select"
-                value={selectedTagCategory}
-                onChange={(e) => handleTagCategoryChange(e.target.value as 'all' | TagCategoryType)}
-                className="text-xs bg-zinc-50 border border-zinc-300 rounded-md px-2.5 py-1.5 text-zinc-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                季節 {filterSeasons.length > 0 && `(${filterSeasons.length})`}
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveFilterTab('motif')}
+                className={`text-xs px-3 py-1.5 rounded-md font-medium transition-all cursor-pointer ${
+                  activeFilterTab === 'motif'
+                    ? 'bg-white text-zinc-900 shadow-2xs'
+                    : 'text-zinc-600 hover:text-zinc-900'
+                }`}
               >
-                <option value="all">すべての軸（全要素）</option>
-                <option value="season">季節</option>
-                <option value="motif">モチーフ</option>
-              </select>
+                モチーフ {filterMotifs.length > 0 && `(${filterMotifs.length})`}
+              </button>
+            </div>
+          </div>
+
+          {/* 選択中の軸に応じたチェック形式項目セレクター */}
+          <div className="p-3 bg-zinc-50 rounded-lg border border-zinc-200 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-zinc-700">
+                {activeFilterTab === 'season' ? '季節を選択（複数選択可）' : 'モチーフを選択（複数選択可）'}
+              </span>
+              <div className="flex items-center gap-2 text-[11px]">
+                {activeFilterTab === 'season' ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setFilterSeasons([...SEASONS])}
+                      className="text-indigo-600 hover:underline cursor-pointer"
+                    >
+                      全選択
+                    </button>
+                    <span className="text-zinc-300">|</span>
+                    <button
+                      type="button"
+                      onClick={() => setFilterSeasons([])}
+                      className="text-zinc-500 hover:underline cursor-pointer"
+                    >
+                      クリア
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setFilterMotifs([...MOTIFS])}
+                      className="text-indigo-600 hover:underline cursor-pointer"
+                    >
+                      全選択
+                    </button>
+                    <span className="text-zinc-300">|</span>
+                    <button
+                      type="button"
+                      onClick={() => setFilterMotifs([])}
+                      className="text-zinc-500 hover:underline cursor-pointer"
+                    >
+                      クリア
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
 
-            {/* Step 2: その中での値絞り込み */}
-            <div className="flex flex-col gap-1">
-              <label
-                htmlFor="tag-value-select"
-                className="text-xs font-semibold text-zinc-600"
-              >
-                2. タグの値
-              </label>
-              <select
-                id="tag-value-select"
-                disabled={selectedTagCategory === 'all'}
-                value={selectedTagValue}
-                onChange={(e) => setSelectedTagValue(e.target.value)}
-                className="text-xs bg-zinc-50 border border-zinc-300 rounded-md px-2.5 py-1.5 text-zinc-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <option value="all">
-                  {selectedTagCategory === 'all'
-                    ? '（軸を選択してください）'
-                    : selectedTagCategory === 'season'
-                    ? 'すべての季節'
-                    : 'すべてのモチーフ'}
-                </option>
-                {selectedTagCategory === 'season' &&
-                  SEASONS.map((s) => (
-                    <option key={s} value={s}>
-                      季節: {s}
-                    </option>
-                  ))}
-                {selectedTagCategory === 'motif' &&
-                  MOTIFS.map((m) => (
-                    <option key={m} value={m}>
-                      モチーフ: {m}
-                    </option>
-                  ))}
-              </select>
+            {/* チェック形式の項目群（ピル型チェックボックス） */}
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {activeFilterTab === 'season'
+                ? SEASONS.map((season) => {
+                    const isChecked = filterSeasons.includes(season)
+                    return (
+                      <button
+                        key={season}
+                        type="button"
+                        aria-pressed={isChecked}
+                        onClick={() => toggleSeasonFilter(season)}
+                        className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-all cursor-pointer ${
+                          isChecked
+                            ? 'bg-amber-600 text-white border-amber-600 font-medium shadow-2xs'
+                            : 'bg-white text-zinc-700 border-zinc-300 hover:bg-zinc-100 hover:border-zinc-400'
+                        }`}
+                      >
+                        <span className="text-[10px] font-bold">
+                          {isChecked ? '✓' : '□'}
+                        </span>
+                        <span>{season}</span>
+                      </button>
+                    )
+                  })
+                : MOTIFS.map((motif) => {
+                    const isChecked = filterMotifs.includes(motif)
+                    return (
+                      <button
+                        key={motif}
+                        type="button"
+                        aria-pressed={isChecked}
+                        onClick={() => toggleMotifFilter(motif)}
+                        className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-all cursor-pointer ${
+                          isChecked
+                            ? 'bg-indigo-600 text-white border-indigo-600 font-medium shadow-2xs'
+                            : 'bg-white text-zinc-700 border-zinc-300 hover:bg-zinc-100 hover:border-zinc-400'
+                        }`}
+                      >
+                        <span className="text-[10px] font-bold">
+                          {isChecked ? '✓' : '□'}
+                        </span>
+                        <span>{motif}</span>
+                      </button>
+                    )
+                  })}
             </div>
+          </div>
 
-            {/* 進行ステータス */}
+          {/* 適用中のフィルターバッジ表示 */}
+          {(filterSeasons.length > 0 || filterMotifs.length > 0) && (
+            <div className="flex items-center flex-wrap gap-1.5 text-xs">
+              <span className="text-zinc-500 text-[11px] font-medium">適用中:</span>
+              {filterSeasons.length > 0 && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200">
+                  <span>季節: {filterSeasons.join(', ')}</span>
+                  <button
+                    type="button"
+                    onClick={() => setFilterSeasons([])}
+                    className="text-amber-500 hover:text-amber-800 cursor-pointer text-[10px]"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+              {filterMotifs.length > 0 && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-800 border border-indigo-200">
+                  <span>モチーフ: {filterMotifs.join(', ')}</span>
+                  <button
+                    type="button"
+                    onClick={() => setFilterMotifs([])}
+                    className="text-indigo-500 hover:text-indigo-800 cursor-pointer text-[10px]"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* 進行ステータス & 並べ替え */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-zinc-100">
             <div className="flex flex-col gap-1">
-              <label
-                htmlFor="status-select"
-                className="text-xs font-semibold text-zinc-600"
-              >
-                3. 完了状態
+              <label htmlFor="status-select" className="text-xs font-semibold text-zinc-600">
+                完了状態の絞り込み
               </label>
               <select
                 id="status-select"
@@ -492,12 +625,8 @@ function App() {
               </select>
             </div>
 
-            {/* 並べ替え */}
             <div className="flex flex-col gap-1">
-              <label
-                htmlFor="sort-select"
-                className="text-xs font-semibold text-zinc-600"
-              >
+              <label htmlFor="sort-select" className="text-xs font-semibold text-zinc-600">
                 並べ替え
               </label>
               <select
@@ -514,17 +643,18 @@ function App() {
             </div>
           </div>
 
-          <div className="pt-2 text-xs text-zinc-500 flex items-center justify-between">
+          <div className="pt-2 text-xs text-zinc-500 flex items-center justify-between border-t border-zinc-100">
             <span>
               該当要素: <strong className="text-zinc-800">{displayedItems.length}</strong> / {CHECKLIST_ITEMS.length} 件
             </span>
-            {selectedTagCategory !== 'all' && selectedTagValue !== 'all' && (
-              <span className="text-zinc-400">
-                選択中: {selectedTagCategory === 'season' ? '季節' : 'モチーフ'}: {selectedTagValue}
+            {isFilterActive && (
+              <span className="text-zinc-500 font-mono">
+                達成率: {currentFilteredRate.rate}% ({currentFilteredRate.checkedCount}/{currentFilteredRate.totalCount})
               </span>
             )}
           </div>
         </section>
+
 
         {/* Supabase接続エラー/未設定案内 */}
         {errorMessage && (
@@ -550,11 +680,7 @@ function App() {
               <p className="text-sm text-zinc-500">指定された条件に一致する要素がありません。</p>
               <button
                 type="button"
-                onClick={() => {
-                  setSelectedTagCategory('all')
-                  setSelectedTagValue('all')
-                  setStatusFilter('all')
-                }}
+                onClick={handleResetFilters}
                 className="mt-3 text-xs text-indigo-600 hover:text-indigo-800 font-medium cursor-pointer"
               >
                 絞り込み条件をリセット

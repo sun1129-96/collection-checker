@@ -81,59 +81,61 @@ describe('calcConditionRate（特定タグ条件に対する達成率計算）',
   })
 })
 
-describe('filterItems（タグ階層およびステータスによる絞り込み）', () => {
-  const checked = new Set(['spring-sakura-spot', 'spring-sakura-photo'])
+describe('filterItems（複数選択および複数軸の複合絞り込み）', () => {
+  const checked = new Set(['spring-sakura-spot', 'spring-sakura-photo', 'summer-sun-climb'])
 
-  it('タグ種別: 季節（春）で絞り込めること', () => {
+  it('季節が夏と春のもの（同一軸内の複数選択: OR条件）で絞り込めること', () => {
     const filtered = filterItems(
       CHECKLIST_ITEMS,
-      { tagCategory: 'season', tagValue: '春', status: 'all' },
+      { seasons: ['春', '夏'], motifs: [], status: 'all' },
       checked,
     )
-    expect(filtered.length).toBe(9)
-    expect(filtered.every((item) => item.season === '春')).toBe(true)
+    // 春9件 + 夏9件 = 18件
+    expect(filtered.length).toBe(18)
+    expect(filtered.every((item) => item.season === '春' || item.season === '夏')).toBe(true)
   })
 
-  it('タグ種別: モチーフ（桜）で絞り込めること', () => {
+  it('季節が春でモチーフが桜のもの（異なる軸間の複合選択: AND条件）で絞り込めること', () => {
     const filtered = filterItems(
       CHECKLIST_ITEMS,
-      { tagCategory: 'motif', tagValue: '桜', status: 'all' },
+      { seasons: ['春'], motifs: ['桜'], status: 'all' },
       checked,
     )
+    // 春かつ桜 = 3件
     expect(filtered.length).toBe(3)
-    expect(filtered.every((item) => item.motif === '桜')).toBe(true)
+    expect(filtered.every((item) => item.season === '春' && item.motif === '桜')).toBe(true)
+  })
+
+  it('季節が春・夏でモチーフが桜・太陽のもの（OR × AND複合条件）で絞り込めること', () => {
+    const filtered = filterItems(
+      CHECKLIST_ITEMS,
+      { seasons: ['春', '夏'], motifs: ['桜', '太陽'], status: 'all' },
+      checked,
+    )
+    // (春かつ桜 3件) + (夏かつ太陽 3件) = 6件
+    expect(filtered.length).toBe(6)
+    expect(filtered.every((item) => (item.season === '春' || item.season === '夏') && (item.motif === '桜' || item.motif === '太陽'))).toBe(true)
   })
 
   it('完了状態（completed）で絞り込めること', () => {
     const filtered = filterItems(
       CHECKLIST_ITEMS,
-      { tagCategory: 'all', tagValue: 'all', status: 'completed' },
+      { seasons: [], motifs: [], status: 'completed' },
       checked,
     )
-    expect(filtered.length).toBe(2)
-    expect(filtered.map((i) => i.id)).toEqual(['spring-sakura-spot', 'spring-sakura-photo'])
+    expect(filtered.length).toBe(3)
   })
 
   it('未完了状態（uncompleted）で絞り込めること', () => {
     const filtered = filterItems(
       CHECKLIST_ITEMS,
-      { tagCategory: 'all', tagValue: 'all', status: 'uncompleted' },
+      { seasons: [], motifs: [], status: 'uncompleted' },
       checked,
     )
-    expect(filtered.length).toBe(34) // 36 - 2
-  })
-
-  it('タグ種別と進行ステータスの複合条件で絞り込めること', () => {
-    const filtered = filterItems(
-      CHECKLIST_ITEMS,
-      { tagCategory: 'motif', tagValue: '桜', status: 'uncompleted' },
-      checked,
-    )
-    // 桜全3件中、完了2件、未完了1件（crystal）
-    expect(filtered.length).toBe(1)
-    expect(filtered[0].id).toBe('spring-sakura-crystal')
+    expect(filtered.length).toBe(33) // 36 - 3
   })
 })
+
 
 describe('sortItems（並べ替え）', () => {
   const checked = new Set(['spring-sakura-spot'])
