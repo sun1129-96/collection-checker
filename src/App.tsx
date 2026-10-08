@@ -823,7 +823,7 @@ function App() {
                 </button>
               </div>
               <span className="text-[11px] text-zinc-400 hidden sm:inline">
-                {filterMatchMode === 'and' ? '全条件に合致' : 'いずれかを含む'}
+                {filterMatchMode === 'and' ? '選択した全項目を含む要素のみ' : '選択したいずれかの項目を含む要素'}
               </span>
             </div>
           </div>
@@ -1089,14 +1089,19 @@ function App() {
                         </span>
                       </div>
 
-                      {/* 右側: タグの組み合わせ（モチーフ: 桜, 季節: 春） */}
+                      {/* 右側: タグの組み合わせ（複数要素・歌唱者等に対応） */}
                       <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
                         <span className="text-xs px-2 py-0.5 rounded bg-zinc-100 text-zinc-600 border border-zinc-200">
-                          モチーフ: {item.motif}
+                          モチーフ: {Array.isArray(item.motif) ? item.motif.join(', ') : item.motif}
                         </span>
                         <span className="text-xs px-2 py-0.5 rounded bg-zinc-100 text-zinc-600 border border-zinc-200">
-                          季節: {item.season}
+                          季節: {Array.isArray(item.season) ? item.season.join(', ') : item.season}
                         </span>
+                        {Array.isArray(item.singers) && item.singers.length > 0 && (
+                          <span className="text-xs px-2 py-0.5 rounded bg-zinc-100 text-zinc-600 border border-zinc-200">
+                            歌唱者: {item.singers.join(', ')}
+                          </span>
+                        )}
                       </div>
                     </button>
                   </li>

@@ -90,15 +90,26 @@ describe('calcComparisonConditionRate（複合比較条件に対する達成率�
     'summer-sun-climb',
   ])
 
-  it('季節の複数選択（例: 春と夏）の達成率が正しく計算されること', () => {
+  it('季節の複数選択（例: 春と夏、OR条件）の達成率が正しく計算されること', () => {
     // 春9件 + 夏9件 = 18件中 3件完了 -> 17%
     const result = calcComparisonConditionRate(
-      { seasons: ['春', '夏'], motifs: [] },
+      { seasons: ['春', '夏'], motifs: [], matchMode: 'or' },
       checked,
     )
     expect(result.totalCount).toBe(18)
     expect(result.checkedCount).toBe(3)
     expect(result.rate).toBe(17)
+  })
+
+  it('季節の複数選択（例: 春と夏、AND条件）では両方を持つ要素のみ対象となること', () => {
+    // 春と夏の両方を持つ要素は現状0件 -> 0%
+    const result = calcComparisonConditionRate(
+      { seasons: ['春', '夏'], motifs: [], matchMode: 'and' },
+      checked,
+    )
+    expect(result.totalCount).toBe(0)
+    expect(result.checkedCount).toBe(0)
+    expect(result.rate).toBe(0)
   })
 
   it('季節とモチーフの複合（例: 春 × 桜、AND条件）の達成率が正しく計算されること', () => {
@@ -159,15 +170,51 @@ describe('formatConditionLabel（比較条件のラベル生成）', () => {
 describe('filterItems（複数選択および複数軸の複合絞り込み）', () => {
   const checked = new Set(['spring-sakura-spot', 'spring-sakura-photo', 'summer-sun-climb'])
 
-  it('季節が夏と春のもの（同一軸内の複数選択: OR条件）で絞り込めること', () => {
+  it('同一軸内の複数選択でOR条件（春 または 夏）の場合はいずれかを含む要素が絞り込めること', () => {
     const filtered = filterItems(
       CHECKLIST_ITEMS,
-      { seasons: ['春', '夏'], motifs: [], status: 'all' },
+      { seasons: ['春', '夏'], motifs: [], status: 'all', matchMode: 'or' },
       checked,
     )
     // 春9件 + 夏9件 = 18件
     expect(filtered.length).toBe(18)
     expect(filtered.every((item) => item.season === '春' || item.season === '夏')).toBe(true)
+  })
+
+  it('同一軸内の複数選択でAND条件（春 かつ 夏）の場合は全てを含む要素のみ絞り込まれること（単一値なら0件）', () => {
+    const filtered = filterItems(
+      CHECKLIST_ITEMS,
+      { seasons: ['春', '夏'], motifs: [], status: 'all', matchMode: 'and' },
+      checked,
+    )
+    // 春と夏の両方を持つ要素は存在しないため0件
+    expect(filtered.length).toBe(0)
+  })
+
+  it('ひとつの軸に複数の要素を持つアイテム（歌唱者:A, Bなど）に対するAND検索で、項目全てが含まれるもののみ絞り込めること', () => {
+    // 歌唱者タグなど複数要素を持つアイテムのモック
+    const multiTagItems = [
+      { id: 'item-ab', label: '曲AB', season: ['春', '夏'], motif: '桜' },
+      { id: 'item-a', label: '曲A', season: '春', motif: '桜' },
+      { id: 'item-b', label: '曲B', season: '夏', motif: '太陽' },
+    ]
+
+    // 季節に「春」「夏」の両方が選択されたAND検索 -> 曲AB のみ
+    const andFiltered = filterItems(
+      multiTagItems,
+      { seasons: ['春', '夏'], motifs: [], status: 'all', matchMode: 'and' },
+      checked,
+    )
+    expect(andFiltered.length).toBe(1)
+    expect(andFiltered[0].id).toBe('item-ab')
+
+    // 季節に「春」「夏」が選択されたOR検索 -> 曲AB, 曲A, 曲B の3件すべて
+    const orFiltered = filterItems(
+      multiTagItems,
+      { seasons: ['春', '夏'], motifs: [], status: 'all', matchMode: 'or' },
+      checked,
+    )
+    expect(orFiltered.length).toBe(3)
   })
 
   it('季節が春でモチーフが桜のもの（完全一致: AND条件）で絞り込めること', () => {
@@ -192,15 +239,28 @@ describe('filterItems（複数選択および複数軸の複合絞り込み）',
     expect(filtered.every((item) => item.season === '春' || item.motif === '太陽')).toBe(true)
   })
 
-  it('季節が春・夏でモチーフが桜・太陽のもの（OR × AND複合条件）で絞り込めること', () => {
+  it('季節が春・夏でモチーフが桜・太陽のAND検索では全指定条件（4条件全て）を満たす要素のみ絞り込まれること（単一値要素なら0件）', () => {
     const filtered = filterItems(
       CHECKLIST_ITEMS,
       { seasons: ['春', '夏'], motifs: ['桜', '太陽'], status: 'all', matchMode: 'and' },
       checked,
     )
-    // (春かつ桜 3件) + (夏かつ太陽 3件) = 6件
-    expect(filtered.length).toBe(6)
-    expect(filtered.every((item) => (item.season === '春' || item.season === '夏') && (item.motif === '桜' || item.motif === '太陽'))).toBe(true)
+    // 春かつ夏かつ桜かつ太陽の全条件を満たす単一値要素は存在しないため0件
+    expect(filtered.length).toBe(0)
+  })
+
+  it('複数タグ保持アイテムにおいて、季節（春・夏）およびモチーフ（桜・太陽）の全条件を満たすアイテムがAND検索で絞り込めること', () => {
+    const multiTagItems = [
+      { id: 'full-match', label: '全条件合致', season: ['春', '夏'], motif: ['桜', '太陽'] },
+      { id: 'partial-match', label: '一部合致', season: ['春', '夏'], motif: ['桜'] },
+    ]
+    const filtered = filterItems(
+      multiTagItems,
+      { seasons: ['春', '夏'], motifs: ['桜', '太陽'], status: 'all', matchMode: 'and' },
+      checked,
+    )
+    expect(filtered.length).toBe(1)
+    expect(filtered[0].id).toBe('full-match')
   })
 
   it('完了状態（completed）で絞り込めること', () => {

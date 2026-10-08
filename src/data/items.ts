@@ -1,8 +1,10 @@
 export type ChecklistItem = {
   id: string
   label: string
-  season: string
-  motif: string
+  season: string | string[]
+  motif: string | string[]
+  singers?: string[] // 将来の歌唱者タグ等の複数要素保持に対応
+  [key: string]: unknown
 }
 
 export const CHECKLIST_ITEMS: ChecklistItem[] = [
@@ -67,8 +69,22 @@ export const CHECKLIST_ITEMS: ChecklistItem[] = [
   { id: 'winter-newyear-arrow', season: '冬', motif: '正月', label: '破魔矢の入手' },
 ]
 
-export const SEASONS = [...new Set(CHECKLIST_ITEMS.map((item) => item.season))]
-export const MOTIFS = [...new Set(CHECKLIST_ITEMS.map((item) => item.motif))]
+/**
+ * アイテムから指定カテゴリのタグ値の配列を取得する（単一値・複数値の両方に対応）
+ */
+export function getItemTagValues(item: ChecklistItem, category: string): string[] {
+  const val = item[category]
+  if (Array.isArray(val)) {
+    return val.map(String)
+  }
+  if (typeof val === 'string' && val.length > 0) {
+    return [val]
+  }
+  return []
+}
+
+export const SEASONS = [...new Set(CHECKLIST_ITEMS.flatMap((item) => getItemTagValues(item, 'season')))]
+export const MOTIFS = [...new Set(CHECKLIST_ITEMS.flatMap((item) => getItemTagValues(item, 'motif')))]
 
 export const TAG_CATEGORIES = [
   { id: 'season', label: '季節' },
@@ -196,7 +212,8 @@ export type MultiFilterConfig = {
 
 /**
  * 複合条件に基づいてアイテム一覧を絞り込む
- * - matchMode === 'and' (デフォルト): 指定された各軸の条件すべてに完全一致する要素を抽出
+ * - matchMode === 'and' (デフォルト): 指定された各軸・項目の条件すべてが含まれる（完全一致）要素のみを抽出
+ *   （一つの軸に複数の要素が選択された場合も、項目全てが含まれるもののみ絞り込む）
  * - matchMode === 'or': 指定された条件のいずれかを含む要素を抽出
  */
 export function filterItems(
@@ -204,35 +221,33 @@ export function filterItems(
   config: MultiFilterConfig,
   checkedIds: Set<string>,
 ): ChecklistItem[] {
-  const selectedSeasonsSet = new Set(config.seasons)
-  const selectedMotifsSet = new Set(config.motifs)
-  const hasSeasonFilter = selectedSeasonsSet.size > 0
-  const hasMotifFilter = selectedMotifsSet.size > 0
+  const hasSeasonFilter = config.seasons.length > 0
+  const hasMotifFilter = config.motifs.length > 0
   const matchMode = config.matchMode ?? 'and'
 
   return items.filter((item) => {
-    // 季節およびモチーフ両方が指定されている場合の一致判定
-    if (hasSeasonFilter && hasMotifFilter) {
-      if (matchMode === 'and') {
-        // AND条件: 季節条件とモチーフ条件の両方に完全一致
-        if (!selectedSeasonsSet.has(item.season) || !selectedMotifsSet.has(item.motif)) {
+    const itemSeasons = getItemTagValues(item, 'season')
+    const itemMotifs = getItemTagValues(item, 'motif')
+
+    if (matchMode === 'and') {
+      // AND条件: 選択されたすべての要素がアイテムに含まれていること
+      // 一つの軸に複数の要素が選択された場合（例: 季節で春と夏、歌唱者でAとB）も、項目「全て」が含まれるもののみ絞り込む
+      if (hasSeasonFilter) {
+        const hasAllSeasons = config.seasons.every((s) => itemSeasons.includes(s))
+        if (!hasAllSeasons) return false
+      }
+      if (hasMotifFilter) {
+        const hasAllMotifs = config.motifs.every((m) => itemMotifs.includes(m))
+        if (!hasAllMotifs) return false
+      }
+    } else {
+      // OR条件: 選択された要素のいずれか1つでもアイテムに含まれていること
+      if (hasSeasonFilter || hasMotifFilter) {
+        const matchesSeason = hasSeasonFilter && config.seasons.some((s) => itemSeasons.includes(s))
+        const matchesMotif = hasMotifFilter && config.motifs.some((m) => itemMotifs.includes(m))
+        if (!matchesSeason && !matchesMotif) {
           return false
         }
-      } else {
-        // OR条件: 季節条件またはモチーフ条件のいずれかを含む
-        if (!selectedSeasonsSet.has(item.season) && !selectedMotifsSet.has(item.motif)) {
-          return false
-        }
-      }
-    } else if (hasSeasonFilter) {
-      // 季節条件のみ指定されている場合
-      if (!selectedSeasonsSet.has(item.season)) {
-        return false
-      }
-    } else if (hasMotifFilter) {
-      // モチーフ条件のみ指定されている場合
-      if (!selectedMotifsSet.has(item.motif)) {
-        return false
       }
     }
 
